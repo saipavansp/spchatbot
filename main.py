@@ -15,7 +15,7 @@ generation_config = {
     "temperature": 1,
     "top_p": 0.95,
     "top_k": 64,
-    "max_output_tokens": 500,  # Reduced output tokens to optimize speed
+    "max_output_tokens": 10000,  # Reduced output tokens to optimize speed
     "response_mime_type": "text/plain",
 }
 

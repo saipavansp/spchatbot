@@ -34,7 +34,7 @@ async function fetchPrompt() {
     // If your response contains a specific field, say "scenario",
     // you can log that field too:
     // console.log(data.scenario);
-    scenarioPrompts[selectedScenario] = data;
+    //scenarioPrompts[selectedScenario] = data;
 
 }
 
@@ -106,7 +106,7 @@ function initMessages() {
     messages = [];
     const systemMessage = {
         role: 'system',
-        content: scenarioPrompts[selectedScenario]
+        content: data['prompt']
     };
     messages.push(systemMessage);
 }

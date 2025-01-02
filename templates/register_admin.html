@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Registration - AI Roleplay System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .registration-container {
+            max-width: 500px;
+            margin: 30px auto;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card-header {
+            background: #1a237e;  /* Darker blue for admin */
+            color: white;
+            border-radius: 15px 15px 0 0;
+            padding: 20px;
+        }
+        .form-control:focus {
+            border-color: #1a237e;
+            box-shadow: 0 0 0 0.2rem rgba(26, 35, 126, 0.25);
+        }
+        .btn-primary {
+            background-color: #1a237e;
+            border: none;
+            padding: 10px 20px;
+        }
+        .btn-primary:hover {
+            background-color: #283593;
+        }
+        .error-message {
+            display: none;
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .login-link {
+            text-align: center;
+            margin-top: 15px;
+        }
+        .login-link a {
+            color: #1a237e;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .form-text {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .admin-badge {
+            background-color: #1a237e;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .password-requirements {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .requirement-item {
+            font-size: 12px;
+            color: #6c757d;
+            margin: 3px 0;
+        }
+        .requirement-met {
+            color: #28a745;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container registration-container">
+        <div class="card">
+            <div class="card-header text-center">
+                <h4 class="mb-0">Admin Registration <span class="admin-badge">Admin</span></h4>
+                <small>Create an administrator account</small>
+            </div>
+            <div class="card-body p-4">
+                <form id="registrationForm">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" required>
+                        <div class="form-text">Choose a unique admin username</div>
+                        <div class="error-message" id="usernameError"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="workEmail" class="form-label">Work Email</label>
+                        <input type="email" class="form-control" id="workEmail" required>
+                        <div class="form-text">Use your official work email</div>
+                        <div class="error-message" id="emailError"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" required>
+                        <div class="password-requirements">
+                            <div class="requirement-item" id="lengthReq">• Minimum 8 characters</div>
+                            <div class="requirement-item" id="upperReq">• At least one uppercase letter</div>
+                            <div class="requirement-item" id="lowerReq">• At least one lowercase letter</div>
+                            <div class="requirement-item" id="numberReq">• At least one number</div>
+                            <div class="requirement-item" id="specialReq">• At least one special character</div>
+                        </div>
+                        <div class="error-message" id="passwordError"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                        <input type="password" class="form-control" id="confirmPassword" required>
+                        <div class="error-message" id="confirmPasswordError"></div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="termsCheck" required>
+                        <label class="form-check-label" for="termsCheck">
+                            I understand my responsibilities as an administrator
+                        </label>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Register as Admin</button>
+                    </div>
+                </form>
+
+                <div class="login-link">
+                    <p>Already have an account? <a href="/login">Login here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('registrationForm');
+        const usernameInput = document.getElementById('username');
+        const emailInput = document.getElementById('workEmail');
+        const passwordInput = document.getElementById('password');
+
+        // Password requirements check
+        const requirements = {
+            length: str => str.length >= 8,
+            upper: str => /[A-Z]/.test(str),
+            lower: str => /[a-z]/.test(str),
+            number: str => /[0-9]/.test(str),
+            special: str => /[!@#$%^&*]/.test(str)
+        };
+
+        passwordInput.addEventListener('input', () => {
+            const password = passwordInput.value;
+            
+            // Check each requirement
+            document.getElementById('lengthReq').classList.toggle('requirement-met', requirements.length(password));
+            document.getElementById('upperReq').classList.toggle('requirement-met', requirements.upper(password));
+            document.getElementById('lowerReq').classList.toggle('requirement-met', requirements.lower(password));
+            document.getElementById('numberReq').classList.toggle('requirement-met', requirements.number(password));
+            document.getElementById('specialReq').classList.toggle('requirement-met', requirements.special(password));
+        });
+
+        // Real-time username validation
+        usernameInput.addEventListener('blur', async () => {
+            if (usernameInput.value) {
+                try {
+                    const response = await fetch('/check-username', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: usernameInput.value })
+                    });
+                    const data = await response.json();
+                    
+                    if (!data.available) {
+                        document.getElementById('usernameError').textContent = 'Username already taken';
+                        document.getElementById('usernameError').style.display = 'block';
+                    } else {
+                        document.getElementById('usernameError').style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                }
+            }
+        });
+
+        // Real-time email validation
+        emailInput.addEventListener('blur', async () => {
+            if (emailInput.value) {
+                try {
+                    const response = await fetch('/check-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: emailInput.value })
+                    });
+                    const data = await response.json();
+                    
+                    if (!data.available) {
+                        document.getElementById('emailError').textContent = 'Email already registered';
+                        document.getElementById('emailError').style.display = 'block';
+                    } else {
+                        document.getElementById('emailError').style.display = 'none';
+                    }
+                }
+                catch (error) {
+                    console.error('Error:', error);
+                }
+            }
+        });
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Reset error messages
+            document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
+
+            const password = passwordInput.value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Check if all password requirements are met
+            const isPasswordValid = Object.values(requirements).every(fn => fn(password));
+            if (!isPasswordValid) {
+                document.getElementById('passwordError').textContent = 'Password does not meet all requirements';
+                document.getElementById('passwordError').style.display = 'block';
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                document.getElementById('confirmPasswordError').textContent = 'Passwords do not match';
+                document.getElementById('confirmPasswordError').style.display = 'block';
+                return;
+            }
+
+            const formData = {
+                username: usernameInput.value,
+                work_email: emailInput.value,
+                password: password,
+                role: 'admin'
+            };
+
+            try {
+                const response = await fetch('/register/admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('Admin registration successful! Please login.');
+                    window.location.href = '/login';
+                } else {
+                    if (data.error) {
+                        // Show specific error message
+                        const errorField = data.field ? document.getElementById(`${data.field}Error`) : document.getElementById('passwordError');
+                        errorField.textContent = data.error;
+                        errorField.style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred during registration. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html>

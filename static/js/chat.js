@@ -15,6 +15,8 @@ var spokenTextQueue = [];
 var sessionActive = false;
 var lastSpeakTime;
 var imgUrl = "";
+let editModal;
+let currentEditId;
 
 const scenarioPrompts = {};
 const selectedScenario={};
@@ -26,15 +28,15 @@ async function fetchPrompt() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scenario_id: selectedScenario })
     });
-    const data = await response.json();
+     data = await response.json();
 
     // Display the entire response data in the console
-    console.log(data);
+    console.log(typeof data);
 
     // If your response contains a specific field, say "scenario",
     // you can log that field too:
     // console.log(data.scenario);
-    scenarioPrompts[selectedScenario] = data;
+    // scenarioPrompts[selectedScenario] = data;
 
 }
 
@@ -98,6 +100,40 @@ function connectAvatar() {
     });
     xhr.send();
 }
+window.stopSession = () => {
+    // First stop all ongoing processes
+    document.getElementById('startSession').disabled = false;
+    document.getElementById('microphone').disabled = true;
+    document.getElementById('stopSession').disabled = true;
+    document.getElementById('configuration').hidden = false;
+    document.getElementById('chatHistory').hidden = true;
+    document.getElementById('showTypeMessage').checked = false;
+    document.getElementById('showTypeMessage').disabled = true;
+    document.getElementById('userMessageBox').hidden = true;
+    document.getElementById('uploadImgIcon').hidden = true;
+
+    // Stop any ongoing speech
+    if (isSpeaking) {
+        stopSpeaking();
+    }
+
+    // Stop microphone if it's active
+    if (document.getElementById('microphone').innerHTML === 'Stop Microphone') {
+        speechRecognizer.stopContinuousRecognitionAsync();
+    }
+
+    // Disconnect avatar
+    disconnectAvatar();
+
+    // Get the chat history for analysis
+    const chatHistory = document.getElementById('chatHistory').innerHTML;
+    
+    // Store chat history in sessionStorage for analysis
+    sessionStorage.setItem('chatHistory', chatHistory);
+
+    // Redirect to analysis page
+    window.location.href = 'summary';
+};
 
 // Initialize messages with selected scenario
 
@@ -106,7 +142,7 @@ function initMessages() {
     messages = [];
     const systemMessage = {
         role: 'system',
-        content: scenarioPrompts[selectedScenario]
+        content: data['prompt']
     };
     messages.push(systemMessage);
 }
@@ -215,6 +251,48 @@ function setupWebRTC(iceServerUrl, iceServerUsername, iceServerCredential) {
         console.log(`[${new Date().toISOString()}] Avatar failed to start. Error: ${error}`);
         document.getElementById('startSession').disabled = false;
         document.getElementById('configuration').hidden = false;
+    });
+}
+
+function showEditModal(id) {
+    editModal = new bootstrap.Modal(document.getElementById('editModal'));
+    currentEditId = id;
+    
+    fetch(`/get_prompt?id=${id}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('edit-scenario').value = data.scenario;
+            document.getElementById('edit-prompt').value = data.prompt;
+            document.getElementById('edit-question').value = data.question;
+            editModal.show();
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function saveEdit() {
+    const data = {
+        scenario: document.getElementById('edit-scenario').value,
+        prompt: document.getElementById('edit-prompt').value,
+        question: document.getElementById('edit-question').value
+    };
+    
+    fetch(`/edit/${currentEditId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message) {
+            editModal.hide();
+            loadHistory();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to update scenario');
     });
 }
 //....................................................................

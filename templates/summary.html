@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversation Analysis</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(to bottom right, #e8edf1, #d3e0e5);
+            min-height: 100vh;
+        }
+        .rating-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .score {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2563eb;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e5e7eb;
+            border-radius: 5px;
+            margin-top: 5px;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 5px;
+            background: #2563eb;
+            transition: width 1s ease-in-out;
+        }
+    </style>
+</head>
+<body class="p-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Conversation Analysis</h1>
+            <p class="text-gray-600">Here's your performance summary</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Rating Cards -->
+            <div class="rating-card">
+                <h2 class="font-bold text-xl mb-2">Language Quality</h2>
+                <div class="score language-score">0</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="rating-card">
+                <h2 class="font-bold text-xl mb-2">Communication Skills</h2>
+                <div class="score communication-score">0</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="rating-card">
+                <h2 class="font-bold text-xl mb-2">Task Completion</h2>
+                <div class="score task-score">0</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="rating-card">
+                <h2 class="font-bold text-xl mb-2">Overall Approach</h2>
+                <div class="score approach-score">0</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg p-6 shadow-lg">
+            <h2 class="text-2xl font-bold mb-4">Detailed Analysis</h2>
+            
+            <div class="mb-6">
+                <h3 class="font-bold text-lg text-green-600 mb-2">Key Strengths</h3>
+                <div id="strengths" class="text-gray-700"></div>
+            </div>
+
+            <div class="mb-6">
+                <h3 class="font-bold text-lg text-red-600 mb-2">Areas for Improvement</h3>
+                <div id="improvements" class="text-gray-700"></div>
+            </div>
+
+            <div>
+                <h3 class="font-bold text-lg text-blue-600 mb-2">Overall Summary</h3>
+                <div id="summary" class="text-gray-700"></div>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center">
+            <button onclick="window.location.href='/'" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                Start New Conversation
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Function to animate score counting
+        function animateScore(element, targetScore) {
+            let currentScore = 0;
+            const duration = 1000; // 1 second
+            const steps = 20;
+            const increment = targetScore / steps;
+            const stepDuration = duration / steps;
+
+            const timer = setInterval(() => {
+                currentScore += increment;
+                if (currentScore >= targetScore) {
+                    currentScore = targetScore;
+                    clearInterval(timer);
+                }
+                element.textContent = currentScore.toFixed(1);
+                element.nextElementSibling.querySelector('.progress-fill').style.width = 
+                    (currentScore * 10) + '%';
+            }, stepDuration);
+        }
+
+        // Get analysis data and populate the page
+        async function loadAnalysis() {
+            try {
+                const response = await fetch('/api/analyzeConversation', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                // Parse the analysis text
+                const analysis = data.analysis;
+                
+                // Extract scores using regex
+                const scores = {
+                    language: parseFloat(analysis.match(/Language Quality.*?(\d+)/s)?.[1] || 0),
+                    communication: parseFloat(analysis.match(/Communication Skills.*?(\d+)/s)?.[1] || 0),
+                    task: parseFloat(analysis.match(/Task Completion.*?(\d+)/s)?.[1] || 0),
+                    approach: parseFloat(analysis.match(/Overall Approach.*?(\d+)/s)?.[1] || 0)
+                };
+
+                // Animate scores
+                animateScore(document.querySelector('.language-score'), scores.language);
+                animateScore(document.querySelector('.communication-score'), scores.communication);
+                animateScore(document.querySelector('.task-score'), scores.task);
+                animateScore(document.querySelector('.approach-score'), scores.approach);
+
+                // Extract and display sections
+                const strengthsMatch = analysis.match(/Key strengths:(.*?)(?=Areas for improvement)/s);
+                const improvementsMatch = analysis.match(/Areas for improvement:(.*?)(?=Overall summary)/s);
+                const summaryMatch = analysis.match(/Overall summary:(.*?)$/s);
+
+                document.getElementById('strengths').innerHTML = strengthsMatch?.[1].trim().split('\n').map(s => `<p>${s.trim()}</p>`).join('') || '';
+                document.getElementById('improvements').innerHTML = improvementsMatch?.[1].trim().split('\n').map(s => `<p>${s.trim()}</p>`).join('') || '';
+                document.getElementById('summary').innerHTML = summaryMatch?.[1].trim().split('\n').map(s => `<p>${s.trim()}</p>`).join('') || '';
+
+            } catch (error) {
+                console.error('Error loading analysis:', error);
+            }
+        }
+
+        // Load analysis when page loads
+        window.onload = loadAnalysis;
+    </script>
+</body>
+</html>

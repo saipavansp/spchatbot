@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; color: #343a40; }
+        .navbar { background-color: #3498db; }
+        .navbar-brand img { height: 40px; width: auto; }
+        .card {
+            background-color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary { background-color: #3498db; border: none; }
+        .btn-primary:hover { background-color: #2980b9; }
+        .btn-success { background-color: #27ae60; border: none; }
+        .btn-success:hover { background-color: #219a52; }
+        table thead { background-color: #3498db; color: #ffffff; }
+        .fade-out {
+            animation: fadeOut 0.5s ease-out forwards;
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(-20px); }
+        }
+        .scenario-checkbox { width: 18px; height: 18px; cursor: pointer; }
+        .batch-actions {
+            display: none;
+            padding: 10px;
+            background: #fff;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .batch-actions.visible { display: block; animation: slideDown 0.3s ease-out; }
+        @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .visible-row { background-color: #d4edda; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <img src="https://via.placeholder.com/150x40.png?text=AdminLogo" alt="Logo">
+                Admin Dashboard
+            </a>
+            <div class="d-flex">
+                <a href="/" class="btn btn-outline-light">Back to Home</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Admin Dashboard</h1>
+        
+        <div class="card shadow p-4 mb-5">
+            <h2 class="text-center mb-4">Available Scenarios</h2>
+            
+            <div class="batch-actions" id="batchActionsBar">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span id="selectedCount">0 items selected</span>
+                    </div>
+                    <div>
+                        <button class="btn btn-success btn-sm me-2" onclick="sendToUsers()">
+                            Send to Users
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <table class="table table-bordered mt-3">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" class="scenario-checkbox" id="selectAll"></th>
+                        <th>Scenario</th>
+                        <th>Prompt</th>
+                        <th>Question</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="scenarios-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card shadow p-4 mb-5">
+        <h2 class="text-center mb-4">Current User Scenarios</h2>
+        
+        <div class="batch-actions" id="userScenarioBatchActions">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span id="userScenarioSelectedCount">0 items selected</span>
+                </div>
+                <div>
+                    <button class="btn btn-danger btn-sm me-2" onclick="removeFromUsers()">
+                        Remove from Users
+                    </button>
+                </div>
+            </div>
+        </div>
+    
+        <table class="table table-bordered mt-3">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" class="scenario-checkbox" id="selectAllUserScenarios"></th>
+                    <th>Scenario</th>
+                    <th>Prompt</th>
+                    <th>Question</th>
+                    <th>Approval Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="current-user-scenarios-body"></tbody>
+        </table>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedScenarios = new Set();
+
+        let selectedUserScenarios = new Set();
+
+        function toggleSingleScenarioVisibility(scenarioId) {
+            if (!confirm('Are you sure you want to send this scenario to users?')) {
+                return;
+            }
+        
+            fetch('/admin/toggle_visibility', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    ids: [scenarioId],
+                    action: 'add'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert(data.message);
+                    loadScenarios();
+                    loadCurrentUserScenarios();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update scenario visibility');
+            });
+        }
+        
+        function sendToUsers() {
+            const scenarioIds = Array.from(selectedScenarios);
+            if (scenarioIds.length === 0) {
+                alert('Please select scenarios to send to users');
+                return;
+            }
+        
+            if (!confirm('Are you sure you want to send these scenarios to users?')) {
+                return;
+            }
+        
+            fetch('/admin/toggle_visibility', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    ids: scenarioIds,
+                    action: 'add'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert(data.message);
+                    selectedScenarios.clear();
+                    updateBatchActionsBar();
+                    loadScenarios();
+                    loadCurrentUserScenarios();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update scenario visibility');
+            });
+        }
+
+function loadCurrentUserScenarios() {
+    fetch('/admin/current-user-scenarios')
+        .then(response => response.json())
+        .then(data => {
+            const tableBody = document.getElementById('current-user-scenarios-body');
+            tableBody.innerHTML = '';
+            
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.setAttribute('data-id', item._id);
+                const approvalDate = item.approval_date ? new Date(item.approval_date).toLocaleDateString() : 'N/A';
+                
+                row.innerHTML = `
+                    <td>
+                        <input type="checkbox" class="user-scenario-checkbox" data-id="${item._id}">
+                    </td>
+                    <td>${item.scenario}</td>
+                    <td>${item.prompt}</td>
+                    <td>${item.question}</td>
+                    <td>${approvalDate}</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" onclick="removeSingleScenario('${item._id}')">
+                            Remove
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            // Add event listeners for checkboxes
+            document.querySelectorAll('.user-scenario-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', () => handleUserScenarioCheckbox(checkbox));
+            });
+        });
+}
+
+function handleUserScenarioCheckbox(checkbox) {
+    const scenarioId = checkbox.getAttribute('data-id');
+    if (checkbox.checked) {
+        selectedUserScenarios.add(scenarioId);
+    } else {
+        selectedUserScenarios.delete(scenarioId);
+    }
+    updateUserScenarioBatchActions();
+}
+
+function updateUserScenarioBatchActions() {
+    const batchBar = document.getElementById('userScenarioBatchActions');
+    const selectedCount = document.getElementById('userScenarioSelectedCount');
+    
+    if (selectedUserScenarios.size > 0) {
+        selectedCount.textContent = `${selectedUserScenarios.size} item${selectedUserScenarios.size === 1 ? '' : 's'} selected`;
+        batchBar.classList.add('visible');
+    } else {
+        batchBar.classList.remove('visible');
+    }
+}
+
+function removeFromUsers() {
+    const scenarioIds = Array.from(selectedUserScenarios);
+    if (scenarioIds.length === 0) {
+        alert('Please select scenarios to remove');
+        return;
+    }
+
+    if (!confirm('Are you sure you want to remove these scenarios from user view?')) {
+        return;
+    }
+
+    fetch('/admin/toggle_visibility', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            ids: scenarioIds,
+            action: 'remove'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+        selectedUserScenarios.clear();
+        updateUserScenarioBatchActions();
+        loadCurrentUserScenarios();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to remove scenarios');
+    });
+}
+
+function removeSingleScenario(scenarioId) {
+    if (!confirm('Are you sure you want to remove this scenario from user view?')) {
+        return;
+    }
+
+    fetch('/admin/toggle_visibility', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            ids: [scenarioId],
+            action: 'remove'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+        loadCurrentUserScenarios();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to remove scenario');
+    });
+}
+
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            loadScenarios();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('selectAll').addEventListener('change', function(e) {
+                const checkboxes = document.querySelectorAll('.scenario-checkbox');
+                checkboxes.forEach(checkbox => {
+                    if (checkbox !== this) {
+                        checkbox.checked = this.checked;
+                        handleCheckboxChange(checkbox);
+                    }
+                });
+            });
+        }
+
+        function handleCheckboxChange(checkbox) {
+            const scenarioId = checkbox.getAttribute('data-id');
+            if (checkbox.checked) {
+                selectedScenarios.add(scenarioId);
+            } else {
+                selectedScenarios.delete(scenarioId);
+            }
+            updateBatchActionsBar();
+        }
+
+        function updateBatchActionsBar() {
+            const batchBar = document.getElementById('batchActionsBar');
+            const selectedCount = document.getElementById('selectedCount');
+            
+            if (selectedScenarios.size > 0) {
+                selectedCount.textContent = `${selectedScenarios.size} item${selectedScenarios.size === 1 ? '' : 's'} selected`;
+                batchBar.classList.add('visible');
+            } else {
+                batchBar.classList.remove('visible');
+            }
+        }
+
+        function loadScenarios() {
+            fetch('/admin/scenarios')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const scenariosTableBody = document.getElementById('scenarios-table-body');
+                    scenariosTableBody.innerHTML = '';
+                    
+                    if (!Array.isArray(data)) {
+                        console.error('Expected array of scenarios, got:', data);
+                        return;
+                    }
+        
+                    data.forEach(item => {
+                        if (!item || !item._id) {
+                            console.error('Invalid scenario item:', item);
+                            return;
+                        }
+        
+                        const row = document.createElement('tr');
+                        row.setAttribute('data-id', item._id);
+                        if (item.visible_to_users) {
+                            row.classList.add('visible-row');
+                        }
+                        row.innerHTML = `
+                            <td>
+                                <input type="checkbox" class="scenario-checkbox" data-id="${item._id}">
+                            </td>
+                            <td>${item.scenario || ''}</td>
+                            <td>${item.prompt || ''}</td>
+                            <td>${item.question || ''}</td>
+                            <td>${item.visible_to_users ? 'Visible to Users' : 'Hidden from Users'}</td>
+                            <td>
+                                <button class="btn btn-success btn-sm" onclick="toggleSingleScenarioVisibility('${item._id}')">
+                                    Send to Users
+                                </button>
+                            </td>
+                        `;
+                        scenariosTableBody.appendChild(row);
+                    });
+        
+                    // Add checkbox event listeners
+                    document.querySelectorAll('.scenario-checkbox').forEach(checkbox => {
+                        checkbox.addEventListener('change', () => handleCheckboxChange(checkbox));
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading scenarios:', error);
+                    alert('Failed to load scenarios');
+                });
+        }
+        document.getElementById('selectAllUserScenarios').addEventListener('change', function(e) {
+            const checkboxes = document.querySelectorAll('.user-scenario-checkbox');
+            checkboxes.forEach(checkbox => {
+                if (checkbox !== this) {
+                    checkbox.checked = this.checked;
+                    handleUserScenarioCheckbox(checkbox);
+                }
+            });
+        });
+        loadCurrentUserScenarios();
+    </script>
+</body>
+</html>

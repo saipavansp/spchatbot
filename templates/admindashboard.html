@@ -54,7 +54,7 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="#">
                 <img src="https://via.placeholder.com/150x40.png?text=Logo" alt="Logo">
-                Admin Dashboard
+                SuperAdmin Dashboard
             </a>
         </div>
     </nav>
@@ -110,6 +110,9 @@
                     <span id="selectedCount">0 items selected</span>
                 </div>
                 <div>
+                    <button class="btn btn-primary btn-sm me-2" onclick="sendToAdmin()">
+                        Send to Admin
+                    </button>
                     <button class="btn btn-success btn-sm me-2" onclick="sendToUsers()">
                         Send to Users
                     </button>
@@ -134,10 +137,79 @@
             <tbody id="history-table-body"></tbody>
         </table>
     </div>
+    <div class="container mt-5">
+        <!-- Current Admin Scenarios Section -->
+        <div class="card shadow p-4 mb-5">
+            <h2 class="text-center mb-4">Current Admin Scenarios</h2>
+            
+            <div class="batch-actions" id="adminScenarioBatchActions">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span id="adminScenarioSelectedCount">0 items selected</span>
+                    </div>
+                    <div>
+                        <button class="btn btn-danger btn-sm me-2" onclick="removeFromAdmin()">
+                            Remove from Admin View
+                        </button>
+                    </div>
+                </div>
+            </div>
+    
+            <div class="table-responsive">
+                <table class="table table-bordered mt-3">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" class="scenario-checkbox" id="selectAllAdminScenarios"></th>
+                            <th>Scenario Name</th>
+                            <th>Approval Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="current-admin-scenarios-body"></tbody>
+                </table>
+            </div>
+        </div>
+    
+        <!-- Current User Scenarios Section -->
+        <div class="card shadow p-4 mb-5">
+            <h2 class="text-center mb-4">Current User Scenarios</h2>
+            
+            <div class="batch-actions" id="userScenarioBatchActions">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span id="userScenarioSelectedCount">0 items selected</span>
+                    </div>
+                    <div>
+                        <button class="btn btn-danger btn-sm me-2" onclick="removeFromUsers()">
+                            Remove from User View
+                        </button>
+                    </div>
+                </div>
+            </div>
+    
+            <div class="table-responsive">
+                <table class="table table-bordered mt-3">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" class="scenario-checkbox" id="selectAllUserScenarios"></th>
+                            <th>Scenario Name</th>
+                            <th>Approval Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="current-user-scenarios-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
         let deleteModal;
+        let selectedAdminScenarios = new Set();
+        let selectedUserScenarios = new Set();
         let scenarioToDelete = null;
         let selectedScenarios = new Set();
 
@@ -270,6 +342,34 @@
                 alert('Failed to update scenario visibility');
             });
         }
+        function sendToAdmin() {
+            const scenarioIds = Array.from(selectedScenarios);
+            if (scenarioIds.length === 0) {
+                alert('Please select scenarios to send to admin');
+                return;
+            }
+        
+            fetch('/toggle_admin_visibility', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: scenarioIds })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert(data.message);
+                    selectedScenarios.clear();
+                    updateBatchActionsBar();
+                    loadHistory();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update scenario visibility for admin');
+            });
+        }
 
         function showDeleteModal(id) {
             scenarioToDelete = id;
@@ -333,6 +433,251 @@
                     });
             }, 500);
         }
+        
+        function loadCurrentScenarios() {
+            // Load Admin Scenarios
+            fetch('/superadmin/current-admin-scenarios')
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.getElementById('current-admin-scenarios-body');
+                    tableBody.innerHTML = '';
+                    
+                    data.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.setAttribute('data-id', item._id);
+                        const approvalDate = item.approval_date ? new Date(item.approval_date).toLocaleDateString() : 'N/A';
+                        
+                        row.innerHTML = `
+                            <td>
+                                <input type="checkbox" class="admin-scenario-checkbox" data-id="${item._id}">
+                            </td>
+                            <td>${item.scenario}</td>
+                            <td>${approvalDate}</td>
+                            <td>Visible to Admin</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm" onclick="removeSingleFromAdmin('${item._id}')">
+                                    Remove
+                                </button>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+        
+                    document.querySelectorAll('.admin-scenario-checkbox').forEach(checkbox => {
+                        checkbox.addEventListener('change', () => handleAdminScenarioCheckbox(checkbox));
+                    });
+                });
+        
+            // Load User Scenarios
+            fetch('/superadmin/current-user-scenarios')
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.getElementById('current-user-scenarios-body');
+                    tableBody.innerHTML = '';
+                    
+                    data.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.setAttribute('data-id', item._id);
+                        const approvalDate = item.approval_date ? new Date(item.approval_date).toLocaleDateString() : 'N/A';
+                        
+                        row.innerHTML = `
+                            <td>
+                                <input type="checkbox" class="user-scenario-checkbox" data-id="${item._id}">
+                            </td>
+                            <td>${item.scenario}</td>
+                            <td>${approvalDate}</td>
+                            <td>Visible to Users</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm" onclick="removeSingleFromUsers('${item._id}')">
+                                    Remove
+                                </button>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+        
+                    document.querySelectorAll('.user-scenario-checkbox').forEach(checkbox => {
+                        checkbox.addEventListener('change', () => handleUserScenarioCheckbox(checkbox));
+                    });
+                });
+        }
+        
+        function handleAdminScenarioCheckbox(checkbox) {
+            const scenarioId = checkbox.getAttribute('data-id');
+            if (checkbox.checked) {
+                selectedAdminScenarios.add(scenarioId);
+            } else {
+                selectedAdminScenarios.delete(scenarioId);
+            }
+            updateAdminBatchActions();
+        }
+        
+        function handleUserScenarioCheckbox(checkbox) {
+            const scenarioId = checkbox.getAttribute('data-id');
+            if (checkbox.checked) {
+                selectedUserScenarios.add(scenarioId);
+            } else {
+                selectedUserScenarios.delete(scenarioId);
+            }
+            updateUserBatchActions();
+        }
+        
+        function updateAdminBatchActions() {
+            const batchBar = document.getElementById('adminScenarioBatchActions');
+            const selectedCount = document.getElementById('adminScenarioSelectedCount');
+            
+            if (selectedAdminScenarios.size > 0) {
+                selectedCount.textContent = `${selectedAdminScenarios.size} item${selectedAdminScenarios.size === 1 ? '' : 's'} selected`;
+                batchBar.classList.add('visible');
+            } else {
+                batchBar.classList.remove('visible');
+            }
+        }
+        
+        function updateUserBatchActions() {
+            const batchBar = document.getElementById('userScenarioBatchActions');
+            const selectedCount = document.getElementById('userScenarioSelectedCount');
+            
+            if (selectedUserScenarios.size > 0) {
+                selectedCount.textContent = `${selectedUserScenarios.size} item${selectedUserScenarios.size === 1 ? '' : 's'} selected`;
+                batchBar.classList.add('visible');
+            } else {
+                batchBar.classList.remove('visible');
+            }
+        }
+        
+        function removeFromAdmin() {
+            const scenarioIds = Array.from(selectedAdminScenarios);
+            if (scenarioIds.length === 0) {
+                alert('Please select scenarios to remove');
+                return;
+            }
+        
+            if (!confirm('Are you sure you want to remove these scenarios from admin view? This will also remove them from user view if present.')) {
+                return;
+            }
+        
+            fetch('/superadmin/toggle_admin_visibility', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    ids: scenarioIds,
+                    action: 'remove'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                selectedAdminScenarios.clear();
+                updateAdminBatchActions();
+                loadCurrentScenarios();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to remove scenarios');
+            });
+        }
+        
+        function removeFromUsers() {
+            const scenarioIds = Array.from(selectedUserScenarios);
+            if (scenarioIds.length === 0) {
+                alert('Please select scenarios to remove');
+                return;
+            }
+        
+            if (!confirm('Are you sure you want to remove these scenarios from user view?')) {
+                return;
+            }
+        
+            fetch('/superadmin/toggle_user_visibility', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    ids: scenarioIds,
+                    action: 'remove'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                selectedUserScenarios.clear();
+                updateUserBatchActions();
+                loadCurrentScenarios();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to remove scenarios');
+            });
+        }
+        
+        function removeSingleFromAdmin(scenarioId) {
+            if (!confirm('Are you sure you want to remove this scenario from admin view? This will also remove it from user view if present.')) {
+                return;
+            }
+        
+            fetch('/superadmin/toggle_admin_visibility', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    ids: [scenarioId],
+                    action: 'remove'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                loadCurrentScenarios();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to remove scenario');
+            });
+        }
+        
+        function removeSingleFromUsers(scenarioId) {
+            if (!confirm('Are you sure you want to remove this scenario from user view?')) {
+                return;
+            }
+        
+            fetch('/superadmin/toggle_user_visibility', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    ids: [scenarioId],
+                    action: 'remove'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                loadCurrentScenarios();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to remove scenario');
+            });
+        }
+        
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('selectAllAdminScenarios').addEventListener('change', function(e) {
+                const checkboxes = document.querySelectorAll('.admin-scenario-checkbox');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                    handleAdminScenarioCheckbox(checkbox);
+                });
+            });
+        
+            document.getElementById('selectAllUserScenarios').addEventListener('change', function(e) {
+                const checkboxes = document.querySelectorAll('.user-scenario-checkbox');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                    handleUserScenarioCheckbox(checkbox);
+                });
+            });
+        
+            loadCurrentScenarios();
+        });
     </script>
 </body>
 </html>

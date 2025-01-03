@@ -3,6 +3,7 @@ from flask_pymongo import PyMongo
 from pymongo import MongoClient
 from flask_cors import CORS
 from bson import ObjectId
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
@@ -20,8 +21,15 @@ except Exception as e:
 
 @app.route('/')
 def home():
-    scenarios = mongo.db.admin.find({"visible_to_users": True})  
-    return render_template('index.html', scenarios=scenarios)
+    try:
+        # Explicitly fetch only scenarios marked as visible to users
+        scenarios = list(mongo.db.admin.find({
+            "visible_to_users": True
+        }).sort('user_approval_date', -1))
+        return render_template('index.html', scenarios=scenarios)
+    except Exception as e:
+        print(f"Error fetching scenarios: {e}")
+        return jsonify({"error": "Failed to fetch scenarios"}), 500
 
 @app.route('/admindashboard')
 def admin_dashboard():
@@ -91,7 +99,8 @@ def get_history():
                 "scenario": doc.get('scenario', ''),
                 "prompt": doc.get('prompt', ''),
                 "question": doc.get('question', ''),
-                "visible_to_users": doc.get('visible_to_users', False)
+                "visible_to_users": doc.get('visible_to_users', False),
+                "visible_to_admin": doc.get('visible_to_admin', False)
             }
             for doc in history
         ]), 200
@@ -134,23 +143,50 @@ def delete_batch():
         print(f"Error in batch delete: {e}")
         return jsonify({"error": "Failed to delete scenarios"}), 500
 
-@app.route('/toggle_visibility', methods=['POST'])
-def toggle_visibility():
+@app.route('/toggle_admin_visibility', methods=['POST'])
+def toggle_admin_visibility():
+    """Super admin endpoint to toggle visibility for admins"""
     try:
         scenario_ids = request.json.get('ids', [])
         if not scenario_ids:
             return jsonify({"error": "No scenarios specified"}), 400
 
         object_ids = [ObjectId(id) for id in scenario_ids]
+        
+        # Update visibility for admins
+        result = mongo.db.admin.update_many(
+            {'_id': {'$in': object_ids}},
+            {'$set': {'visible_to_admin': True}}
+        )
+        
+        # # Set others to not visible to admin
+        # mongo.db.admin.update_many(
+        #     {'_id': {'$nin': object_ids}},
+        #     {'$set': {'visible_to_admin': False}}
+        # )
+
+        return jsonify({
+            "message": f"Successfully updated admin visibility for {result.modified_count} scenarios",
+            "modified_count": result.modified_count
+        }), 200
+    except Exception as e:
+        print(f"Error toggling admin visibility: {e}")
+        return jsonify({"error": "Failed to update scenarios"}), 500
+
+@app.route('/toggle_visibility', methods=['POST'])
+def toggle_visibility():
+    """Super admin endpoint to toggle visibility for users"""
+    try:
+        scenario_ids = request.json.get('ids', [])
+        if not scenario_ids:
+            return jsonify({"error": "No scenarios specified"}), 400
+
+        object_ids = [ObjectId(id) for id in scenario_ids]
+        
+        # Update visibility for users
         result = mongo.db.admin.update_many(
             {'_id': {'$in': object_ids}},
             {'$set': {'visible_to_users': True}}
-        )
-        
-        # Set others to not visible
-        mongo.db.admin.update_many(
-            {'_id': {'$nin': object_ids}},
-            {'$set': {'visible_to_users': False}}
         )
 
         return jsonify({
@@ -160,6 +196,226 @@ def toggle_visibility():
     except Exception as e:
         print(f"Error toggling visibility: {e}")
         return jsonify({"error": "Failed to update scenarios"}), 500
+@app.route('/admin')
+def admin_view():
+    """Route for the regular admin dashboard"""
+    return render_template('admin_dashboard.html')
+
+@app.route('/admin/scenarios')
+def get_admin_scenarios():
+    """Get scenarios that are visible to admin (approved by super admin)"""
+    try:
+        # Get all scenarios that super admin has made visible to admin
+        scenarios = list(mongo.db.admin.find({"visible_to_admin": True}))
+        return jsonify([
+            {
+                "_id": str(doc['_id']),
+                "scenario": doc.get('scenario', ''),
+                "prompt": doc.get('prompt', ''),
+                "question": doc.get('question', ''),
+                "visible_to_users": doc.get('visible_to_users', False)
+            }
+            for doc in scenarios
+        ]), 200
+    except Exception as e:
+        print(f"Error fetching admin scenarios: {e}")
+        return jsonify({"error": "Failed to fetch scenarios"}), 500
+
+@app.route('/admin/toggle_visibility', methods=['POST'])
+def admin_toggle_visibility():
+    """Admin endpoint to toggle user visibility"""
+    try:
+        scenario_ids = request.json.get('ids', [])
+        action = request.json.get('action', 'add')  # Add this line
+        if not scenario_ids:
+            return jsonify({"error": "No scenarios specified"}), 400
+
+        object_ids = [ObjectId(id) for id in scenario_ids]
+        
+        # Verify these scenarios are visible to admin first
+        visible_to_admin = mongo.db.admin.count_documents({
+            '_id': {'$in': object_ids},
+            'visible_to_admin': True
+        })
+        
+        if visible_to_admin != len(scenario_ids):
+            return jsonify({"error": "Unauthorized access to some scenarios"}), 403
+
+        # Update visibility for users
+        if action == 'add':
+            result = mongo.db.admin.update_many(
+                {'_id': {'$in': object_ids}},
+                {
+                    '$set': {
+                        'visible_to_users': True,
+                        'user_approval_date': datetime.now()
+                    }
+                }
+            )
+        else:
+            result = mongo.db.admin.update_many(
+                {'_id': {'$in': object_ids}},
+                {
+                    '$set': {
+                        'visible_to_users': False
+                    },
+                    '$unset': {
+                        'user_approval_date': ''
+                    }
+                }
+            )
+
+        return jsonify({
+            "message": f"Successfully {'added to' if action == 'add' else 'removed from'} user view",
+            "modified_count": result.modified_count
+        }), 200
+    except Exception as e:
+        print(f"Error toggling user visibility: {e}")
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/remove_admin_visibility', methods=['POST'])
+def remove_admin_visibility():
+    """Remove scenarios from admin view"""
+    try:
+        scenario_ids = request.json.get('ids', [])
+        if not scenario_ids:
+            return jsonify({"error": "No scenarios specified"}), 400
+
+        object_ids = [ObjectId(id) for id in scenario_ids]
+        
+        result = mongo.db.admin.update_many(
+            {'_id': {'$in': object_ids}},
+            {'$set': {'visible_to_admin': False}}
+        )
+
+        return jsonify({
+            "message": f"Successfully removed admin visibility for {result.modified_count} scenarios",
+            "modified_count": result.modified_count
+        }), 200
+    except Exception as e:
+        print(f"Error removing admin visibility: {e}")
+        return jsonify({"error": "Failed to update scenarios"}), 500
+
+@app.route('/admin/current-user-scenarios')
+def get_current_user_scenarios():
+    """Get scenarios that are currently visible to users"""
+    try:
+        scenarios = mongo.db.admin.find({"visible_to_users": True})
+        return jsonify([{
+            "_id": str(doc['_id']),
+            "scenario": doc.get('scenario', ''),
+            "prompt": doc.get('prompt', ''),
+            "question": doc.get('question', ''),
+            "approval_date": doc.get('user_approval_date', None)
+        } for doc in scenarios]), 200
+    except Exception as e:
+        print(f"Error fetching user scenarios: {e}")
+        return jsonify({"error": "Failed to fetch scenarios"}), 500
+
+@app.route('/superadmin/toggle_admin_visibility', methods=['POST'])
+def superadmin_toggle_admin_visibility():
+    try:
+        scenario_ids = request.json.get('ids', [])
+        action = request.json.get('action', 'add')  # 'add' or 'remove'
+        
+        if not scenario_ids:
+            return jsonify({"error": "No scenarios specified"}), 400
+
+        object_ids = [ObjectId(id) for id in scenario_ids]
+        
+        if action == 'add':
+            # Update visibility and add approval date for admin
+            result = mongo.db.admin.update_many(
+                {'_id': {'$in': object_ids}},
+                {
+                    '$set': {
+                        'visible_to_admin': True,
+                        'admin_approval_date': datetime.now().isoformat()
+                    }
+                }
+            )
+        else:  # remove
+            # Remove visibility from admin
+            result = mongo.db.admin.update_many(
+                {'_id': {'$in': object_ids}},
+                {
+                    '$set': {'visible_to_admin': False},
+                    '$unset': {'admin_approval_date': ''}
+                }
+            )
+
+        return jsonify({
+            "message": f"Successfully {'added to' if action == 'add' else 'removed from'} admin view",
+            "modified_count": result.modified_count
+        }), 200
+    except Exception as e:
+        print(f"Error toggling admin visibility: {e}")
+        return jsonify({"error": "Failed to update scenarios"}), 500
+
+@app.route('/superadmin/toggle_user_visibility', methods=['POST'])
+def superadmin_toggle_user_visibility():
+    """Super admin endpoint to toggle visibility for users"""
+    try:
+        scenario_ids = request.json.get('ids', [])
+        action = request.json.get('action', 'add')  # 'add' or 'remove'
+        
+        if not scenario_ids:
+            return jsonify({"error": "No scenarios specified"}), 400
+
+        object_ids = [ObjectId(id) for id in scenario_ids]
+        
+        update_data = {
+            '$set': {
+                'visible_to_users': action == 'add',
+                'user_approval_date': datetime.now().isoformat() if action == 'add' else None
+            }
+        }
+
+        result = mongo.db.admin.update_many(
+            {'_id': {'$in': object_ids}},
+            update_data
+        )
+
+        return jsonify({
+            "message": f"Successfully {'added to' if action == 'add' else 'removed from'} user view",
+            "modified_count": result.modified_count
+        }), 200
+    except Exception as e:
+        print(f"Error toggling user visibility: {e}")
+        return jsonify({"error": "Failed to update scenarios"}), 500
+
+
+@app.route('/superadmin/current-user-scenarios', methods=['GET'])
+def superadmin_get_user_scenarios():
+    """Get scenarios that are currently visible to users (for super admin view)"""
+    try:
+        scenarios = mongo.db.admin.find({"visible_to_users": True})
+        return jsonify([{
+            "_id": str(doc['_id']),
+            "scenario": doc.get('scenario', ''),
+            "approval_date": doc.get('user_approval_date', None),
+            "admin_approval_date": doc.get('admin_approval_date', None)
+        } for doc in scenarios]), 200
+    except Exception as e:
+        print(f"Error fetching user scenarios: {e}")
+        return jsonify({"error": "Failed to fetch scenarios"}), 500
+
+
+@app.route('/superadmin/current-admin-scenarios', methods=['GET'])
+def superadmin_get_admin_scenarios():
+    """Get scenarios that are currently visible to admin"""
+    try:
+        scenarios = mongo.db.admin.find({"visible_to_admin": True})
+        return jsonify([{
+            "_id": str(doc['_id']),
+            "scenario": doc.get('scenario', ''),
+            "approval_date": doc.get('admin_approval_date', None),
+            "user_visible": doc.get('visible_to_users', False)
+        } for doc in scenarios]), 200
+    except Exception as e:
+        print(f"Error fetching admin scenarios: {e}")
+        return jsonify({"error": "Failed to fetch scenarios"}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)

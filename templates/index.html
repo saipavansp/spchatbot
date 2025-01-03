@@ -113,11 +113,30 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
             }
+            .nav-links {
+                list-style: none;
+                padding: 10px;
+                display: flex;
+                gap: 20px;
+            }
+            
+            .nav-links li a {
+                text-decoration: none;
+                padding: 8px 15px;
+                background-color: #007bff;
+                color: white;
+                border-radius: 4px;
+            }
+            
+            .nav-links li a:hover {
+                background-color: #0056b3;
+            }
     </style>
 </head>
 <body>
     <h1>Talking Avatar</h1>
     <li><a href="/admindashboard">Super Admin</a></li>
+    <li><a href="/admin">Admin</a></li>
 
     <div id="configuration">
         <div class="control-panel">

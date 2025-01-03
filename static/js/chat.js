@@ -26,15 +26,15 @@ async function fetchPrompt() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scenario_id: selectedScenario })
     });
-    const data = await response.json();
+     data = await response.json();
 
     // Display the entire response data in the console
-    console.log(data);
+    console.log(typeof data);
 
     // If your response contains a specific field, say "scenario",
     // you can log that field too:
     // console.log(data.scenario);
-    scenarioPrompts[selectedScenario] = data;
+    // scenarioPrompts[selectedScenario] = data;
 
 }
 
@@ -98,6 +98,40 @@ function connectAvatar() {
     });
     xhr.send();
 }
+window.stopSession = () => {
+    // First stop all ongoing processes
+    document.getElementById('startSession').disabled = false;
+    document.getElementById('microphone').disabled = true;
+    document.getElementById('stopSession').disabled = true;
+    document.getElementById('configuration').hidden = false;
+    document.getElementById('chatHistory').hidden = true;
+    document.getElementById('showTypeMessage').checked = false;
+    document.getElementById('showTypeMessage').disabled = true;
+    document.getElementById('userMessageBox').hidden = true;
+    document.getElementById('uploadImgIcon').hidden = true;
+
+    // Stop any ongoing speech
+    if (isSpeaking) {
+        stopSpeaking();
+    }
+
+    // Stop microphone if it's active
+    if (document.getElementById('microphone').innerHTML === 'Stop Microphone') {
+        speechRecognizer.stopContinuousRecognitionAsync();
+    }
+
+    // Disconnect avatar
+    disconnectAvatar();
+
+    // Get the chat history for analysis
+    const chatHistory = document.getElementById('chatHistory').innerHTML;
+    
+    // Store chat history in sessionStorage for analysis
+    sessionStorage.setItem('chatHistory', chatHistory);
+
+    // Redirect to analysis page
+    window.location.href = 'summary';
+};
 
 // Initialize messages with selected scenario
 
@@ -106,7 +140,7 @@ function initMessages() {
     messages = [];
     const systemMessage = {
         role: 'system',
-        content: scenarioPrompts[selectedScenario]
+        content: data['prompt']
     };
     messages.push(systemMessage);
 }
@@ -575,7 +609,49 @@ window.startSession = async () => {
 };
 
 
+function disconnectAvatar() {
+    // Close avatar synthesizer if it exists
+    if (avatarSynthesizer) {
+        avatarSynthesizer.close();
+        avatarSynthesizer = null;
+    }
+
+    // Close peer connection if it exists
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+
+    // Close speech recognizer if it exists
+    if (speechRecognizer) {
+        speechRecognizer.close();
+        speechRecognizer = null;
+    }
+
+    // Reset session state
+    sessionActive = false;
+    messageInitiated = false;
+    isSpeaking = false;
+    spokenTextQueue = [];
+    messages = [];
+}
+
 window.stopSession = () => {
+    // First stop all ongoing speech
+    if (isSpeaking) {
+        stopSpeaking();
+    }
+
+    // Stop microphone if it's active
+    if (document.getElementById('microphone').innerHTML === 'Stop Microphone') {
+        speechRecognizer.stopContinuousRecognitionAsync(() => {
+            console.log("Successfully stopped speech recognition");
+        }, (err) => {
+            console.error("Error stopping speech recognition:", err);
+        });
+    }
+
+    // Update UI elements
     document.getElementById('startSession').disabled = false;
     document.getElementById('microphone').disabled = true;
     document.getElementById('stopSession').disabled = true;
@@ -585,9 +661,24 @@ window.stopSession = () => {
     document.getElementById('showTypeMessage').disabled = true;
     document.getElementById('userMessageBox').hidden = true;
     document.getElementById('uploadImgIcon').hidden = true;
-    // document.getElementById('localVideo').hidden = true;
 
+    // Get and store chat history
+    const chatHistory = document.getElementById('chatHistory').innerHTML;
+    sessionStorage.setItem('chatHistory', chatHistory);
+
+    // Clean up video/audio elements
+    const remoteVideo = document.getElementById('remoteVideo');
+    while (remoteVideo.firstChild) {
+        remoteVideo.removeChild(remoteVideo.firstChild);
+    }
+
+    // Disconnect avatar and cleanup connections
     disconnectAvatar();
+
+    // Use setTimeout to ensure cleanup is complete before redirect
+    setTimeout(() => {
+        window.location.href = '/summary';
+    }, 500);
 };
 
 window.clearChatHistory = () => {

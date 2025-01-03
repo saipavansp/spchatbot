@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Talking Avatar Chat Demo</title>
+    <!-- Proper way to load static CSS in Flask -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">    <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+    <!-- Proper way to load your chat.js in Flask -->
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>    <style>
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            max-width: 500px;
+            margin: 20px auto;
+        }
+
+        .select-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .select-container label {
+            font-weight: bold;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .select-input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            transition: all 0.3s ease;
+            min-width: 120px; /* Ensures consistent button width */
+            text-align: center;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            background-color: #0056b3;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        button:disabled {
+            background-color: #b3d7ff;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .chat-container {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        .loader-container {
+          position: absolute;
+          width: 960px;
+          height: 500px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          background: rgba(255, 255, 255, 0.9);
+          z-index: 1000;
+          display: none;
+        }
+
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 5px solid #007bff;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+            }
+            .nav-links {
+                list-style: none;
+                padding: 10px;
+                display: flex;
+                gap: 20px;
+            }
+            
+            .nav-links li a {
+                text-decoration: none;
+                padding: 8px 15px;
+                background-color: #007bff;
+                color: white;
+                border-radius: 4px;
+            }
+            
+            .nav-links li a:hover {
+                background-color: #0056b3;
+            }
+    </style>
+</head>
+<body>
+    <h1>Talking Avatar</h1>
+    <li><a href="/admindashboard">Super Admin</a></li>
+    <li><a href="/admin">Admin</a></li>
+
+    <div id="configuration">
+        <div class="control-panel">
+            <div class="select-container">
+                <label for="languageSelect">Select Language / भाषा चुनें / భాష ఎంచుకోండి</label>
+                <select id="languageSelect" class="select-input">
+                    <option value="en-IN">English</option>
+                    <option value="hi-IN">हिंदी (Hindi)</option>
+                    <option value="te-IN">తెలుగు (Telugu)</option>
+                    <option value="ta-IN">தமிழ் (Tamil)</option>
+                    <option value="kn-IN">ಕನ್ನಡ (Kannada)</option>
+                </select>
+            </div>
+
+            <div class="select-container">
+                <label for="scenarioSelect">Select Scenario</label>
+                <select id="scenarioSelect" class="select-input">
+                    {% for scenario in scenarios %}
+                    <option value="{{ scenario._id }}">{{ scenario.scenario }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="button-container">
+      <button id="startSession" onclick="window.startSession()">Start Chat</button>
+      <button id="microphone" onclick="window.microphone()" disabled>Start Microphone</button>
+      <button id="stopSpeaking" onclick="stopSpeaking()" disabled>Stop Speaking</button>
+      <button id="clearChatHistory" onclick="window.clearChatHistory()">Clear Chat</button>
+      <button id="stopSession" onclick="window.stopSession()" disabled>End Chat</button>
+  </div>
+
+    <div class="chat-container">
+        <div id="videoContainer" style="position: relative; width: 960px;">
+            <div id="overlayArea" style="position: absolute;">
+                <div id="chatHistory" style="width: 360px; height: 500px; font-size: medium; border: none; 
+                    resize: none; background-color: transparent; overflow: hidden;" contentEditable="true" hidden>
+                </div>
+            </div>
+            <div class="loader-container" id="loaderContainer">
+              <div class="loader"></div>
+              <div style="margin-left: 15px; color: #007bff; font-weight: bold;">
+                  Loading Avatar...
+              </div>
+          </div>
+            <div id="remoteVideo"></div>
+        </div>
+
+        <div style="margin-top: 5px;">
+            <div id="userMessageBox" style="width: 940px; min-height: 150px; max-height: 200px; 
+                border: 1px solid; overflow-y: scroll; padding: 10px;" hidden contentEditable="true">
+            </div>
+        </div>
+        
+        <div>
+            <img id="uploadImgIcon" src="./image/attachment.jpg" alt="Upload Image" 
+                style="cursor: pointer; width: 24px; height: 24px; margin-top: 10px;" hidden />
+        </div>
+    </div>
+</body>
+</html>

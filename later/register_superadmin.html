@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Admin Registration - AI Roleplay System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .registration-container {
+            max-width: 500px;
+            margin: 30px auto;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card-header {
+            background: #6a0dad;  /* Purple for super admin */
+            color: white;
+            border-radius: 15px 15px 0 0;
+            padding: 20px;
+        }
+        .form-control:focus {
+            border-color: #6a0dad;
+            box-shadow: 0 0 0 0.2rem rgba(106, 13, 173, 0.25);
+        }
+        .btn-primary {
+            background-color: #6a0dad;
+            border: none;
+            padding: 10px 20px;
+        }
+        .btn-primary:hover {
+            background-color: #8b00ff;
+        }
+        .error-message {
+            display: none;
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .warning-text {
+            color: #dc3545;
+            font-size: 14px;
+            margin: 15px 0;
+            padding: 10px;
+            border: 1px solid #dc3545;
+            border-radius: 5px;
+            background-color: #fff5f5;
+        }
+        .super-admin-badge {
+            background-color: #ffd700;
+            color: #6a0dad;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+        .password-strength {
+            margin-top: 15px;
+        }
+        .strength-meter {
+            height: 10px;
+            background-color: #eee;
+            border-radius: 5px;
+            margin-top: 5px;
+        }
+        .strength-meter div {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+        .requirement-list {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .requirement-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 13px;
+            color: #6c757d;
+        }
+        .requirement-icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .requirement-met {
+            background-color: #28a745;
+        }
+        .requirement-unmet {
+            background-color: #dc3545;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container registration-container">
+        <div class="card">
+            <div class="card-header text-center">
+                <h4 class="mb-0">Super Admin Registration <span class="super-admin-badge">Super Admin</span></h4>
+                <small>Create the master administrator account</small>
+            </div>
+            <div class="card-body p-4">
+                <div class="warning-text text-center">
+                    <strong>Important Notice:</strong><br>
+                    Only one Super Admin account is allowed in the system.<br>
+                    This account will have complete control over all system functions.
+                </div>
+
+                <form id="registrationForm">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" required
+                               pattern="^[a-zA-Z0-9_]{6,}$"
+                               title="Username must be at least 6 characters and can only contain letters, numbers, and underscores">
+                        <div class="error-message" id="usernameError"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="workEmail" class="form-label">Work Email</label>
+                        <input type="email" class="form-control" id="workEmail" required>
+                        <div class="error-message" id="emailError"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" required>
+                        
+                        <div class="password-strength">
+                            <small>Password Strength:</small>
+                            <div class="strength-meter">
+                                <div id="strengthBar"></div>
+                            </div>
+                        </div>
+
+                        <div class="requirement-list">
+                            <div class="requirement-item">
+                                <span class="requirement-icon" id="lengthIcon"></span>
+                                Minimum 12 characters
+                            </div>
+                            <div class="requirement-item">
+                                <span class="requirement-icon" id="upperIcon"></span>
+                                At least one uppercase letter
+                            </div>
+                            <div class="requirement-item">
+                                <span class="requirement-icon" id="lowerIcon"></span>
+                                At least one lowercase letter
+                            </div>
+                            <div class="requirement-item">
+                                <span class="requirement-icon" id="numberIcon"></span>
+                                At least one number
+                            </div>
+                            <div class="requirement-item">
+                                <span class="requirement-icon" id="specialIcon"></span>
+                                At least one special character
+                            </div>
+                        </div>
+                        <div class="error-message" id="passwordError"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                        <input type="password" class="form-control" id="confirmPassword" required>
+                        <div class="error-message" id="confirmPasswordError"></div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="securityCheck" required>
+                            <label class="form-check-label" for="securityCheck">
+                                I acknowledge that I will be responsible for system security
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="dataCheck" required>
+                            <label class="form-check-label" for="dataCheck">
+                                I understand I will have access to all system data
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="backupCheck" required>
+                            <label class="form-check-label" for="backupCheck">
+                                I agree to maintain regular system backups
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Create Super Admin Account</button>
+                    </div>
+                </form>
+
+                <div class="text-center mt-3">
+                    <a href="/login" class="text-decoration-none" style="color: #6a0dad">Back to Login</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('registrationForm');
+        const passwordInput = document.getElementById('password');
+        const strengthBar = document.getElementById('strengthBar');
+
+        // Password requirements
+        const requirements = {
+            length: { regex: /.{12,}/, icon: document.getElementById('lengthIcon') },
+            upper: { regex: /[A-Z]/, icon: document.getElementById('upperIcon') },
+            lower: { regex: /[a-z]/, icon: document.getElementById('lowerIcon') },
+            number: { regex: /[0-9]/, icon: document.getElementById('numberIcon') },
+            special: { regex: /[!@#$%^&*]/, icon: document.getElementById('specialIcon') }
+        };
+
+        // Update password strength indicators
+        function updatePasswordStrength(password) {
+            let strength = 0;
+            let color = '';
+
+            // Check each requirement
+            for (const [key, requirement] of Object.entries(requirements)) {
+                const isValid = requirement.regex.test(password);
+                requirement.icon.className = `requirement-icon ${isValid ? 'requirement-met' : 'requirement-unmet'}`;
+                if (isValid) strength += 20;
+            }
+
+            // Set color based on strength
+            if (strength <= 20) color = '#dc3545';
+            else if (strength <= 40) color = '#ffc107';
+            else if (strength <= 60) color = '#fd7e14';
+            else if (strength <= 80) color = '#20c997';
+            else color = '#28a745';
+
+            strengthBar.style.width = strength + '%';
+            strengthBar.style.backgroundColor = color;
+        }
+
+        passwordInput.addEventListener('input', () => {
+            updatePasswordStrength(passwordInput.value);
+        });
+
+        // Username validation
+        document.getElementById('username').addEventListener('blur', async () => {
+            const username = document.getElementById('username').value;
+            if (username) {
+                try {
+                    const response = await fetch('/check-username', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username })
+                    });
+                    const data = await response.json();
+                    
+                    if (!data.available) {
+                        document.getElementById('usernameError').textContent = 'Username already taken';
+                        document.getElementById('usernameError').style.display = 'block';
+                    } else {
+                        document.getElementById('usernameError').style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                }
+            }
+        });
+
+        // Email validation
+        document.getElementById('workEmail').addEventListener('blur', async () => {
+            const email = document.getElementById('workEmail').value;
+            if (email) {
+                try {
+                    const response = await fetch('/check-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email })
+                    });
+                    const data = await response.json();
+                    
+                    if (!data.available) {
+                        document.getElementById('emailError').textContent = 'Email already registered';
+                        document.getElementById('emailError').style.display = 'block';
+                    } else {
+                        document.getElementById('emailError').style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                }
+            }
+        });
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Reset error messages
+            document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
+
+            const password = passwordInput.value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Verify all requirements are met
+            const isPasswordValid = Object.values(requirements).every(req => req.regex.test(password));
+            if (!isPasswordValid) {
+                document.getElementById('passwordError').textContent = 'Password does not meet all requirements';
+                document.getElementById('passwordError').style.display = 'block';
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                document.getElementById('confirmPasswordError').textContent = 'Passwords do not match';
+                document.getElementById('confirmPasswordError').style.display = 'block';
+                return;
+            }
+
+            const formData = {
+                username: document.getElementById('username').value,
+                work_email: document.getElementById('workEmail').value,
+                password: password
+            };
+
+            try {
+                const response = await fetch('/register/superadmin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('Super Admin registration successful! Please login.');
+                    window.location.href = '/login';
+                } else {
+                    const errorMessage = data.error || 'Registration failed';
+                    alert(errorMessage);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred during registration. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html>

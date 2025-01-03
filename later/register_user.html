@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - AI Roleplay System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .login-container {
+            max-width: 400px;
+            margin: 50px auto;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card-header {
+            background: #2c3e50;
+            color: white;
+            border-radius: 15px 15px 0 0;
+            padding: 20px;
+        }
+        .form-control:focus {
+            border-color: #2c3e50;
+            box-shadow: 0 0 0 0.2rem rgba(44, 62, 80, 0.25);
+        }
+        .btn-primary {
+            background-color: #2c3e50;
+            border: none;
+            padding: 10px 20px;
+        }
+        .btn-primary:hover {
+            background-color: #34495e;
+        }
+        .card-img-top {
+            width: 100px;
+            margin: 20px auto;
+        }
+        .error-message {
+            display: none;
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .register-links {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .register-links a {
+            text-decoration: none;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        .register-links a:hover {
+            color: #34495e;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container login-container">
+        <div class="card">
+            <div class="card-header text-center">
+                <img src="https://via.placeholder.com/100x100" alt="Logo" class="card-img-top">
+                <h4 class="mb-0">Welcome Back</h4>
+            </div>
+            <div class="card-body p-4">
+                <form id="loginForm">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username or Email</label>
+                        <input type="text" class="form-control" id="username" required>
+                        <div class="error-message" id="usernameError"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" required>
+                        <div class="error-message" id="passwordError"></div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </div>
+                </form>
+
+                <div class="register-links">
+                    <p class="text-center mb-3">Don't have an account? Register as:</p>
+                    <div class="d-flex justify-content-between">
+                        <a href="/register/user">User</a>
+                        <a href="/register/admin">Admin</a>
+                        <a href="/register/superadmin">Super Admin</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Redirect based on role
+                    switch(data.role) {
+                        case 'user':
+                            window.location.href = '/';
+                            break;
+                        case 'admin':
+                            window.location.href = '/admindashboard';
+                            break;
+                        case 'superadmin':
+                            window.location.href = '/admindashboard';  // Currently same as admin
+                            break;
+                    }
+                } else {
+                    // Show error message
+                    document.getElementById('passwordError').textContent = data.error;
+                    document.getElementById('passwordError').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('passwordError').textContent = 'An error occurred. Please try again.';
+                document.getElementById('passwordError').style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

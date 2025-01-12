@@ -193,41 +193,41 @@
             });
         }
 
-function loadCurrentUserScenarios() {
-    fetch('/admin/current-user-scenarios')
-        .then(response => response.json())
-        .then(data => {
-            const tableBody = document.getElementById('current-user-scenarios-body');
-            tableBody.innerHTML = '';
-            
-            data.forEach(item => {
-                const row = document.createElement('tr');
-                row.setAttribute('data-id', item._id);
-                const approvalDate = item.approval_date ? new Date(item.approval_date).toLocaleDateString() : 'N/A';
-                
-                row.innerHTML = `
-                    <td>
-                        <input type="checkbox" class="user-scenario-checkbox" data-id="${item._id}">
-                    </td>
-                    <td>${item.scenario}</td>
-                    <td>${item.prompt}</td>
-                    <td>${item.question}</td>
-                    <td>${approvalDate}</td>
-                    <td>
-                        <button class="btn btn-danger btn-sm" onclick="removeSingleScenario('${item._id}')">
-                            Remove
-                        </button>
-                    </td>
-                `;
-                tableBody.appendChild(row);
-            });
-
-            // Add event listeners for checkboxes
-            document.querySelectorAll('.user-scenario-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', () => handleUserScenarioCheckbox(checkbox));
-            });
-        });
-}
+        function loadCurrentUserScenarios() {
+            fetch('/admin/current-user-scenarios')
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.getElementById('current-user-scenarios-body');
+                    tableBody.innerHTML = '';
+                    
+                    data.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.setAttribute('data-id', item._id);
+                        const approvalDate = item.approval_date ? new Date(item.approval_date).toLocaleDateString() : 'N/A';
+                        
+                        row.innerHTML = `
+                            <td>
+                                <input type="checkbox" class="user-scenario-checkbox" data-id="${item._id}">
+                            </td>
+                            <td>${item.scenario}</td>
+                            <td>${item.prompt}</td>
+                            <td>${item.question}</td>
+                            <td>${approvalDate}</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm" onclick="removeSingleScenario('${item._id}')">
+                                    Delete
+                                </button>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+        
+                    // Add event listeners for checkboxes
+                    document.querySelectorAll('.user-scenario-checkbox').forEach(checkbox => {
+                        checkbox.addEventListener('change', () => handleUserScenarioCheckbox(checkbox));
+                    });
+                });
+        }
 
 function handleUserScenarioCheckbox(checkbox) {
     const scenarioId = checkbox.getAttribute('data-id');
@@ -283,23 +283,31 @@ function removeFromUsers() {
     });
 }
 
-function removeSingleScenario(scenarioId) {
-    if (!confirm('Are you sure you want to remove this scenario from user view?')) {
+function removeSingleFromUsers(scenarioId) {
+    if (!confirm('Are you sure you want to remove this scenario from users?')) {
         return;
     }
 
-    fetch('/admin/toggle_visibility', {
+    const endpoint = window.location.pathname.includes('admindashboard') ? 
+        '/superadmin/toggle_user_visibility' : '/admin/toggle_visibility';
+
+    fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
             ids: [scenarioId],
             action: 'remove'
         })
     })
     .then(response => response.json())
     .then(data => {
-        alert(data.message);
-        loadCurrentUserScenarios();
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert(data.message);
+            loadCurrentScenarios();
+            loadHistory();
+        }
     })
     .catch(error => {
         console.error('Error:', error);
@@ -307,6 +315,46 @@ function removeSingleScenario(scenarioId) {
     });
 }
 
+// Batch removal for admin
+function removeFromUsers() {
+    const scenarioIds = Array.from(selectedUserScenarios);
+    if (scenarioIds.length === 0) {
+        alert('Please select scenarios to remove');
+        return;
+    }
+
+    if (!confirm('Are you sure you want to remove these scenarios from users?')) {
+        return;
+    }
+
+    const endpoint = window.location.pathname.includes('admindashboard') ? 
+        '/superadmin/toggle_user_visibility' : '/admin/toggle_visibility';
+
+    fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            ids: scenarioIds,
+            action: 'remove'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert(data.message);
+            selectedUserScenarios.clear();
+            updateUserBatchActions();
+            loadCurrentScenarios();
+            loadHistory();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to remove scenarios');
+    });
+}
         document.addEventListener('DOMContentLoaded', function() {
             setupEventListeners();
             loadScenarios();
@@ -333,6 +381,110 @@ function removeSingleScenario(scenarioId) {
             }
             updateBatchActionsBar();
         }
+
+        function removeSingleScenario(scenarioId) {
+            if (!confirm('Are you sure you want to remove this scenario? This will remove it from user view and delete related notifications.')) {
+                return;
+            }
+        
+            fetch(`/admin/delete_scenario/${scenarioId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    showToast('Scenario removed successfully', 'success');
+                    
+                    // Remove the row with animation
+                    const row = document.querySelector(`tr[data-id="${scenarioId}"]`);
+                    if (row) {
+                        row.classList.add('fade-out');
+                        setTimeout(() => {
+                            row.remove();
+                        }, 500);
+                    }
+                    
+                    // Refresh the tables
+                    loadCurrentUserScenarios();
+                } else {
+                    showToast('Failed to remove scenario: ' + (data.message || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Failed to remove scenario', 'error');
+            });
+        }
+
+        function removeSelectedScenarios() {
+            const scenarioIds = Array.from(selectedUserScenarios);
+            if (scenarioIds.length === 0) {
+                showToast('Please select scenarios to remove', 'error');
+                return;
+            }
+        
+            if (!confirm(`Are you sure you want to remove ${scenarioIds.length} selected scenario(s)? This will remove them from user view and delete related notifications.`)) {
+                return;
+            }
+        
+            fetch('/admin/delete_scenarios', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ ids: scenarioIds })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`Successfully removed ${data.modified_count} scenarios`, 'success');
+                    
+                    // Remove selected rows with animation
+                    scenarioIds.forEach(id => {
+                        const row = document.querySelector(`tr[data-id="${id}"]`);
+                        if (row) {
+                            row.classList.add('fade-out');
+                            setTimeout(() => {
+                                row.remove();
+                            }, 500);
+                        }
+                    });
+                    
+                    // Clear selections and refresh
+                    selectedUserScenarios.clear();
+                    updateUserScenarioBatchActions();
+                    loadCurrentUserScenarios();
+                } else {
+                    showToast('Failed to remove scenarios: ' + (data.message || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Failed to remove scenarios', 'error');
+            });
+        }
+        
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('show');
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => {
+                        document.body.removeChild(toast);
+                    }, 300);
+                }, 3000);
+            }, 100);
+        }
+        
 
         function updateBatchActionsBar() {
             const batchBar = document.getElementById('batchActionsBar');
@@ -401,6 +553,13 @@ function removeSingleScenario(scenarioId) {
                     alert('Failed to load scenarios');
                 });
         }
+
+        document.querySelector('#userScenarioBatchActions .d-flex').insertAdjacentHTML(
+    'beforeend',
+    `<button class="btn btn-danger btn-sm" onclick="removeSelectedScenarios()">
+        Delete Selected
+    </button>`
+);
         document.getElementById('selectAllUserScenarios').addEventListener('change', function(e) {
             const checkboxes = document.querySelectorAll('.user-scenario-checkbox');
             checkboxes.forEach(checkbox => {

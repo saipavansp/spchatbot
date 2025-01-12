@@ -151,6 +151,9 @@
                         <button class="btn btn-danger btn-sm me-2" onclick="removeFromAdmin()">
                             Remove from Admin View
                         </button>
+                        <button onclick="removeSingleFromUsers('${item._id}')">Remove</button>
+                        <button onclick="removeFromUsers()">Remove Selected</button>
+
                     </div>
                 </div>
             </div>
@@ -291,9 +294,16 @@
                     data.forEach(item => {
                         const row = document.createElement('tr');
                         row.setAttribute('data-id', item._id);
-                        if (item.visible_to_users) {
-                            row.classList.add('visible-row');
+                        
+                        // Update status text to be more accurate
+                        let statusText = 'Not Sent';
+                        if (item.notification_sent) {
+                            statusText = 'Notification Sent';
                         }
+                        if (item.visible_to_users) {
+                            statusText = 'Accepted by User';
+                        }
+                        
                         row.innerHTML = `
                             <td>
                                 <input type="checkbox" class="scenario-checkbox" data-id="${item._id}">
@@ -301,9 +311,13 @@
                             <td>${item.scenario}</td>
                             <td>${item.prompt}</td>
                             <td>${item.question}</td>
-                            <td>${item.visible_to_users ? 'Visible' : 'Hidden'}</td>
+                            <td>${statusText}</td>
                             <td>
                                 <button class="btn btn-warning btn-sm me-2">Edit</button>
+                                <button class="btn btn-success btn-sm me-2" onclick="toggleSingleScenarioVisibility('${item._id}')"
+                                    ${item.notification_sent ? 'disabled' : ''}>
+                                    ${item.notification_sent ? 'Notification Sent' : 'Send to Users'}
+                                </button>
                                 <button class="btn btn-danger btn-sm" onclick="showDeleteModal('${item._id}')">
                                     Delete
                                 </button>
@@ -311,35 +325,78 @@
                         `;
                         historyTableBody.appendChild(row);
                     });
-
+        
+                    // Add checkbox event listeners
                     document.querySelectorAll('.scenario-checkbox').forEach(checkbox => {
                         checkbox.addEventListener('change', () => handleCheckboxChange(checkbox));
                     });
+                })
+                .catch(error => {
+                    console.error('Error loading scenarios:', error);
+                    alert('Failed to load scenarios');
                 });
         }
-
         function sendToUsers() {
             const scenarioIds = Array.from(selectedScenarios);
             if (scenarioIds.length === 0) {
                 alert('Please select scenarios to send to users');
                 return;
             }
-
-            fetch('/toggle_visibility', {
+        
+            if (!confirm('Are you sure you want to send these scenarios to users? They will need to accept them before they appear in their dropdown.')) {
+                return;
+            }
+        
+            fetch('/superadmin/toggle_user_visibility', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids: scenarioIds })
+                body: JSON.stringify({ 
+                    ids: scenarioIds,
+                    action: 'add'
+                })
             })
             .then(response => response.json())
             .then(data => {
-                alert(data.message);
-                selectedScenarios.clear();
-                updateBatchActionsBar();
-                loadHistory();
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert('Notifications sent to users successfully. Users will need to accept the scenarios.');
+                    selectedScenarios.clear();
+                    updateBatchActionsBar();
+                    loadHistory();
+                }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Failed to update scenario visibility');
+                alert('Failed to send notifications to users');
+            });
+        }
+
+        function toggleSingleScenarioVisibility(scenarioId) {
+            if (!confirm('Are you sure you want to send this scenario to users? They will need to accept it before it appears in their dropdown.')) {
+                return;
+            }
+        
+            fetch('/superadmin/toggle_user_visibility', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    ids: [scenarioId],
+                    action: 'add'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert('Notification sent to users successfully. Users will need to accept the scenario.');
+                    loadHistory();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to send notification');
             });
         }
         function sendToAdmin() {

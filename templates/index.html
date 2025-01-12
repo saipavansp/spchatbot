@@ -3,199 +3,302 @@
 <head>
     <meta charset="UTF-8">
     <title>Talking Avatar Chat Demo</title>
-    <!-- Proper way to load static CSS in Flask -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">    <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
-    <!-- Proper way to load your chat.js in Flask -->
-    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>    <style>
-        .control-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            padding: 20px;
-            background: #f5f5f5;
-            border-radius: 8px;
-            max-width: 500px;
-            margin: 20px auto;
-        }
-
-        .select-container {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 15px;
-        }
-
-        .select-container label {
-            font-weight: bold;
-            color: #333;
-            font-size: 16px;
-        }
-
-        .select-input {
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
-            width: 100%;
-            margin-bottom: 10px;
-        }
-
-        .button-container {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 20px;
-            flex-wrap: wrap;
-        }
-
-        button {
-            padding: 12px 24px;
-            border-radius: 4px;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            background-color: #007bff;
-            color: white;
-            transition: all 0.3s ease;
-            min-width: 120px; /* Ensures consistent button width */
-            text-align: center;
-            font-weight: 500;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        button:hover {
-            background-color: #0056b3;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            transform: translateY(-1px);
-        }
-
-        button:active {
-            transform: translateY(1px);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        }
-
-        button:disabled {
-            background-color: #b3d7ff;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .chat-container {
-            margin-top: 20px;
-            width: 100%;
-            max-width: 960px;
-            margin: 0 auto;
-        }
-
-        .loader-container {
-          position: absolute;
-          width: 960px;
-          height: 500px;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          background: rgba(255, 255, 255, 0.9);
-          z-index: 1000;
-          display: none;
-        }
-
-        .loader {
-            border: 5px solid #f3f3f3;
-            border-radius: 50%;
-            border-top: 5px solid #007bff;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-            }
-            .nav-links {
-                list-style: none;
-                padding: 10px;
-                display: flex;
-                gap: 20px;
-            }
-            
-            .nav-links li a {
-                text-decoration: none;
-                padding: 8px 15px;
-                background-color: #007bff;
-                color: white;
-                border-radius: 4px;
-            }
-            
-            .nav-links li a:hover {
-                background-color: #0056b3;
-            }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 </head>
-<body>
-    <h1>Talking Avatar</h1>
-    <li><a href="/admindashboard">Super Admin</a></li>
-    <li><a href="/admin">Admin</a></li>
-
-    <div id="configuration">
-        <div class="control-panel">
-            <div class="select-container">
-                <label for="languageSelect">Select Language / भाषा चुनें / భాష ఎంచుకోండి</label>
-                <select id="languageSelect" class="select-input">
-                    <option value="en-IN">English</option>
-                    <option value="hi-IN">हिंदी (Hindi)</option>
-                    <option value="te-IN">తెలుగు (Telugu)</option>
-                    <option value="ta-IN">தமிழ் (Tamil)</option>
-                    <option value="kn-IN">ಕನ್ನಡ (Kannada)</option>
-                </select>
-            </div>
-
-            <div class="select-container">
-                <label for="scenarioSelect">Select Scenario</label>
-                <select id="scenarioSelect" class="select-input">
-                    {% for scenario in scenarios %}
-                    <option value="{{ scenario._id }}">{{ scenario.scenario }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-    </div>
-
-    <div class="button-container">
-      <button id="startSession" onclick="window.startSession()">Start Chat</button>
-      <button id="microphone" onclick="window.microphone()" disabled>Start Microphone</button>
-      <button id="stopSpeaking" onclick="stopSpeaking()" disabled>Stop Speaking</button>
-      <button id="clearChatHistory" onclick="window.clearChatHistory()">Clear Chat</button>
-      <button id="stopSession" onclick="window.stopSession()" disabled>End Chat</button>
-  </div>
-
-    <div class="chat-container">
-        <div id="videoContainer" style="position: relative; width: 960px;">
-            <div id="overlayArea" style="position: absolute;">
-                <div id="chatHistory" style="width: 360px; height: 500px; font-size: medium; border: none; 
-                    resize: none; background-color: transparent; overflow: hidden;" contentEditable="true" hidden>
+<div class="header-container">
+    <h1 class="header-title">Talking Avatar</h1>
+    <div class="header-right">
+        <nav>
+            <ul class="nav-links">
+                <li><a href="/admindashboard">Super Admin</a></li>
+                <li><a href="/admin">Admin</a></li>
+            </ul>
+        </nav>
+        <div class="notification-bell-container" id="notificationBell">
+            <svg class="notification-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span class="notification-badge" id="notificationCount">0</span>
+            
+            <div class="notification-dropdown" id="notificationDropdown">
+                <div class="notification-header">
+                    <span>Notifications</span>
+                </div>
+                <div class="notification-list" id="notificationList">
+                    <!-- Notifications will be inserted here -->
+                </div>
+                <div class="notification-footer" id="markAllRead">
+                    Mark all as read
                 </div>
             </div>
-            <div class="loader-container" id="loaderContainer">
-              <div class="loader"></div>
-              <div style="margin-left: 15px; color: #007bff; font-weight: bold;">
-                  Loading Avatar...
-              </div>
-          </div>
-            <div id="remoteVideo"></div>
-        </div>
-
-        <div style="margin-top: 5px;">
-            <div id="userMessageBox" style="width: 940px; min-height: 150px; max-height: 200px; 
-                border: 1px solid; overflow-y: scroll; padding: 10px;" hidden contentEditable="true">
-            </div>
-        </div>
-        
-        <div>
-            <img id="uploadImgIcon" src="./image/attachment.jpg" alt="Upload Image" 
-                style="cursor: pointer; width: 24px; height: 24px; margin-top: 10px;" hidden />
         </div>
     </div>
+</div>
+
+<div id="configuration">
+    <div class="control-panel">
+        <div class="select-container">
+            <label for="languageSelect">Select Language / भाषा चुनें / భాష ఎంచుకోండి</label>
+            <select id="languageSelect" class="select-input">
+                <option value="en-IN">English</option>
+                <option value="hi-IN">हिंदी (Hindi)</option>
+                <option value="te-IN">తెలుగు (Telugu)</option>
+                <option value="ta-IN">தமிழ் (Tamil)</option>
+                <option value="kn-IN">ಕನ್ನಡ (Kannada)</option>
+            </select>
+        </div>
+
+        <div class="select-container">
+            <label for="scenarioSelect">Select Scenario</label>
+            <select id="scenarioSelect" class="select-input">
+                {% for scenario in scenarios %}
+                <option value="{{ scenario._id }}">{{ scenario.scenario }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="button-container">
+    <button id="startSession" onclick="window.startSession()">Start Chat</button>
+    <button id="microphone" onclick="window.microphone()" disabled>Start Microphone</button>
+    <button id="stopSpeaking" onclick="stopSpeaking()" disabled>Stop Speaking</button>
+    <button id="clearChatHistory" onclick="window.clearChatHistory()">Clear Chat</button>
+    <button id="stopSession" onclick="window.stopSession()" disabled>End Chat</button>
+</div>
+
+<div class="chat-container">
+    <div id="videoContainer" style="position: relative; width: 960px;">
+        <div id="overlayArea" style="position: absolute;">
+            <div id="chatHistory" style="width: 360px; height: 500px; font-size: medium; border: none; 
+                resize: none; background-color: transparent; overflow: hidden;" contentEditable="true" hidden>
+            </div>
+        </div>
+        <div class="loader-container" id="loaderContainer">
+            <div class="loader"></div>
+            <div style="margin-left: 15px; color: #007bff; font-weight: bold;">
+                Loading Avatar...
+            </div>
+        </div>
+        <div id="remoteVideo"></div>
+    </div>
+
+    <div style="margin-top: 5px;">
+        <div id="userMessageBox" style="width: 940px; min-height: 150px; max-height: 200px; 
+            border: 1px solid; overflow-y: scroll; padding: 10px;" hidden contentEditable="true">
+        </div>
+    </div>
+    
+    <div>
+        <img id="uploadImgIcon" src="./image/attachment.jpg" alt="Upload Image" 
+            style="cursor: pointer; width: 24px; height: 24px; margin-top: 10px;" hidden />
+    </div>
+</div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const notificationBell = document.getElementById('notificationBell');
+            const notificationDropdown = document.getElementById('notificationDropdown');
+            const notificationList = document.getElementById('notificationList');
+            const notificationCount = document.getElementById('notificationCount');
+            const markAllRead = document.getElementById('markAllRead');
+            const scenarioSelect = document.getElementById('scenarioSelect');
+        
+            // Single createNotificationItem function that returns HTML string
+            function createNotificationItem(notification) {
+                const sourceClass = notification.source === 'superadmin' ? 'bg-purple-500' : 'bg-blue-500';
+                const sourceText = notification.source === 'superadmin' ? 'SuperAdmin' : 'Admin';
+                
+                return `
+                    <div class="notification-item ${notification.read ? 'read' : 'unread'} ${notification.accepted ? 'accepted' : ''}" 
+                         data-id="${notification.id}">
+                        <div class="notification-header">
+                            <div class="notification-title">
+                                ${notification.title}
+                                ${notification.accepted ? '<span class="accepted-badge">✓ Accepted</span>' : ''}
+                            </div>
+                            <span class="source-badge ${sourceClass}">${sourceText}</span>
+                        </div>
+                        <div class="notification-message">${notification.message}</div>
+                        <div class="notification-time">${notification.time}</div>
+                        ${!notification.accepted ? `
+                            <div class="notification-actions">
+                                <button class="btn-accept" onclick="acceptScenario('${notification.scenario_id}')">
+                                    Accept Scenario
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+        
+            function acceptScenario(scenarioId) {
+                console.log('Accepting scenario:', scenarioId);
+        
+                const acceptButton = document.querySelector(`[onclick="acceptScenario('${scenarioId}')"]`);
+                if (acceptButton) {
+                    acceptButton.disabled = true;
+                }
+        
+                fetch('/accept-scenario', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ scenario_id: scenarioId })
+                })
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data);
+                    
+                    if (data.success) {
+                        const notification = document.querySelector(`[data-id="${scenarioId}"]`);
+                        if (notification) {
+                            notification.classList.add('accepted');
+                            notification.classList.remove('unread');
+                            
+                            const title = notification.querySelector('.notification-title');
+                            if (title && !title.querySelector('.accepted-badge')) {
+                                title.innerHTML += '<span class="accepted-badge">✓ Accepted</span>';
+                            }
+                            
+                            const actions = notification.querySelector('.notification-actions');
+                            if (actions) {
+                                actions.remove();
+                            }
+                        }
+                        
+                        // Refresh notifications and scenarios
+                        fetchNotifications();
+                        updateScenarioDropdown();
+        
+                        showToast('Scenario accepted successfully!', 'success');
+                    } else {
+                        if (acceptButton) {
+                            acceptButton.disabled = false;
+                        }
+                        console.error('Error accepting scenario:', data.error);
+                        showToast('Failed to accept scenario: ' + (data.message || 'Unknown error'), 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error in scenario acceptance:', error);
+                    if (acceptButton) {
+                        acceptButton.disabled = false;
+                    }
+                    showToast('Error accepting scenario. Please try again.', 'error');
+                });
+            }
+        
+            function fetchNotifications() {
+                fetch('/notifications')
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Fetched notifications:', data);
+                        notificationList.innerHTML = '';
+                        let unreadCount = 0;
+        
+                        data.forEach(notification => {
+                            if (!notification.read) unreadCount++;
+                            notificationList.insertAdjacentHTML('beforeend', createNotificationItem(notification));
+                        });
+        
+                        notificationCount.textContent = unreadCount;
+                        notificationCount.style.display = unreadCount > 0 ? 'block' : 'none';
+                    })
+                    .catch(error => {
+                        console.error('Error fetching notifications:', error);
+                    });
+            }
+        
+            function updateScenarioDropdown() {
+                fetch('/accepted-scenarios')
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Fetched accepted scenarios:', data);
+                        scenarioSelect.innerHTML = '';
+                        
+                        if (data.length === 0) {
+                            const option = document.createElement('option');
+                            option.text = 'No accepted scenarios available';
+                            option.disabled = true;
+                            scenarioSelect.appendChild(option);
+                        } else {
+                            data.forEach(scenario => {
+                                const option = document.createElement('option');
+                                option.value = scenario._id;
+                                option.text = scenario.scenario;
+                                scenarioSelect.appendChild(option);
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating scenarios:', error);
+                    });
+            }
+        
+            function showToast(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = `toast toast-${type}`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.classList.add('show');
+                    setTimeout(() => {
+                        toast.classList.remove('show');
+                        setTimeout(() => {
+                            document.body.removeChild(toast);
+                        }, 300);
+                    }, 3000);
+                }, 100);
+            }
+        
+            // Event Listeners
+            notificationBell.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isVisible = notificationDropdown.style.display === 'block';
+                notificationDropdown.style.display = isVisible ? 'none' : 'block';
+                
+                if (!isVisible) {
+                    fetchNotifications();
+                }
+            });
+        
+            document.addEventListener('click', function() {
+                notificationDropdown.style.display = 'none';
+            });
+        
+            notificationDropdown.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+        
+            markAllRead.addEventListener('click', function() {
+                fetch('/notifications/mark-all-read', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(() => {
+                    fetchNotifications();
+                })
+                .catch(error => console.error('Error marking all as read:', error));
+            });
+        
+            // Make acceptScenario globally available
+            window.acceptScenario = acceptScenario;
+        
+            // Initial loads
+            fetchNotifications();
+            updateScenarioDropdown();
+            
+            // Set up polling
+            setInterval(fetchNotifications, 30000);
+        });
+    </script>
 </body>
 </html>

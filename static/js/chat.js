@@ -98,41 +98,104 @@ function connectAvatar() {
     });
     xhr.send();
 }
-window.stopSession = () => {
-    // First stop all ongoing processes
-    document.getElementById('startSession').disabled = false;
-    document.getElementById('microphone').disabled = true;
-    document.getElementById('stopSession').disabled = true;
-    document.getElementById('configuration').hidden = false;
-    document.getElementById('chatHistory').hidden = true;
-    document.getElementById('showTypeMessage').checked = false;
-    document.getElementById('showTypeMessage').disabled = true;
-    document.getElementById('userMessageBox').hidden = true;
-    document.getElementById('uploadImgIcon').hidden = true;
+window.stopSession = async () => {
+    console.log("entered stop session");
+    try {
+        console.log("Starting session cleanup...");
 
-    // Stop any ongoing speech
-    if (isSpeaking) {
-        stopSpeaking();
+        // First stop all ongoing speech
+        if (isSpeaking) {
+            stopSpeaking();
+        }
+
+        // Stop microphone if it's active and ensure it stops before proceeding
+        if (document.getElementById('microphone').innerHTML === 'Stop Microphone') {
+            await new Promise((resolve, reject) => {
+                speechRecognizer.stopContinuousRecognitionAsync(
+                    () => {
+                        document.getElementById('microphone').innerHTML = 'Start Microphone';
+                        console.log("Successfully stopped speech recognition");
+                        resolve();
+                    },
+                    (err) => {
+                        console.error("Error stopping speech recognition:", err);
+                        reject(err);
+                    }
+                );
+            });
+        }
+
+        // Update UI elements
+        document.getElementById('startSession').disabled = false;
+        document.getElementById('microphone').disabled = true;
+        document.getElementById('stopSession').disabled = true;
+        document.getElementById('configuration').hidden = false;
+        document.getElementById('chatHistory').hidden = true;
+        // document.getElementById('showTypeMessage').checked = false;
+        // document.getElementById('showTypeMessage').disabled = true;
+        document.getElementById('userMessageBox').hidden = true;
+        document.getElementById('uploadImgIcon').hidden = true;
+
+        // Get and store chat history
+        const chatHistory = document.getElementById('chatHistory').innerHTML;
+        console.log("Storing chat history...");
+        console.log(chatHistory)
+        sessionStorage.setItem('chatHistory', chatHistory);
+        await sendChatHistoryToBackend(chatHistory);
+
+        // Clean up video/audio elements
+        const remoteVideo = document.getElementById('remoteVideo');
+        while (remoteVideo.firstChild) {
+            remoteVideo.removeChild(remoteVideo.firstChild);
+        }
+
+        // Analyze conversation before disconnecting
+        let analysisResults = null;
+        try {
+            console.log("Starting conversation analysis...");
+            analysisResults = await analyzeConversation(chatHistory);
+            console.log("Analysis completed, storing results...");
+            sessionStorage.setItem('analysisResults', JSON.stringify(analysisResults));
+        } catch (analysisError) {
+            console.error("Error during analysis:", analysisError);
+            // Continue with cleanup even if analysis fails
+        }
+
+        // Disconnect avatar and cleanup
+        console.log("Cleaning up connections...");
+        disconnectAvatar();
+
+        // Ensure that results are stored before redirecting
+        // if (analysisResults) {
+        //     console.log("Redirecting to summary page...");
+        //     // setTimeout(() => {
+        //     //     window.location.href = '/summary';
+        //     // }, 1000);
+        // } else {
+        //     alert("Analysis failed. Please try again.");
+        // }
+
+    } catch (error) {
+        
+        // Emergency cleanup
+        try {
+            if (avatarSynthesizer) avatarSynthesizer.close();
+            if (peerConnection) peerConnection.close();
+            if (speechRecognizer) speechRecognizer.close();
+
+            avatarSynthesizer = null;
+            peerConnection = null;
+            speechRecognizer = null;
+            sessionActive = false;
+            
+            // // Still try to redirect
+            // window.location.href = '/summary';
+        } catch (cleanupError) {
+            console.error("Error during emergency cleanup:", cleanupError);
+            alert("There was an error ending the session. Please refresh the page.");
+        }
     }
-
-    // Stop microphone if it's active
-    if (document.getElementById('microphone').innerHTML === 'Stop Microphone') {
-        speechRecognizer.stopContinuousRecognitionAsync();
-    }
-
-    // Disconnect avatar
-    disconnectAvatar();
-
-    // Get the chat history for analysis
-    const chatHistory = document.getElementById('chatHistory').innerHTML;
-    
-    // Store chat history in sessionStorage for analysis
-    sessionStorage.setItem('chatHistory', chatHistory);
-
-    // Redirect to analysis page
-    window.location.href = 'summary';
 };
-
 // Initialize messages with selected scenario
 
 
@@ -198,7 +261,7 @@ function setupWebRTC(iceServerUrl, iceServerUsername, iceServerCredential) {
                 document.getElementById('stopSession').disabled = false;
                 document.getElementById('remoteVideo').style.width = '960px';
                 document.getElementById('chatHistory').hidden = false;
-                document.getElementById('showTypeMessage').disabled = false;
+                // document.getElementById('showTypeMessage').disabled = false;
                 document.getElementById('localVideo').hidden = true;
                 
                 if (lastSpeakTime === undefined) {
@@ -636,50 +699,98 @@ function disconnectAvatar() {
     messages = [];
 }
 
-window.stopSession = () => {
-    // First stop all ongoing speech
-    if (isSpeaking) {
-        stopSpeaking();
-    }
 
-    // Stop microphone if it's active
-    if (document.getElementById('microphone').innerHTML === 'Stop Microphone') {
-        speechRecognizer.stopContinuousRecognitionAsync(() => {
-            console.log("Successfully stopped speech recognition");
-        }, (err) => {
-            console.error("Error stopping speech recognition:", err);
-        });
-    }
+// window.stopSession = async () => {
+   
+//      // Update UI elements
+//      document.getElementById('startSession').disabled = false;
+//      document.getElementById('microphone').disabled = true;
+//      document.getElementById('stopSession').disabled = true;
+//      document.getElementById('configuration').hidden = false;
+//      document.getElementById('chatHistory').hidden = true;
+//      document.getElementById('showTypeMessage').checked = false;
+//      document.getElementById('showTypeMessage').disabled = true;
+//      document.getElementById('userMessageBox').hidden = true;
+//      document.getElementById('uploadImgIcon').hidden = true;
+//     try {
+//         console.log("Starting session cleanup...");
 
-    // Update UI elements
-    document.getElementById('startSession').disabled = false;
-    document.getElementById('microphone').disabled = true;
-    document.getElementById('stopSession').disabled = true;
-    document.getElementById('configuration').hidden = false;
-    document.getElementById('chatHistory').hidden = true;
-    document.getElementById('showTypeMessage').checked = false;
-    document.getElementById('showTypeMessage').disabled = true;
-    document.getElementById('userMessageBox').hidden = true;
-    document.getElementById('uploadImgIcon').hidden = true;
+//         // First stop all ongoing speech
+//         if (isSpeaking) {
+//             stopSpeaking();
+//         }
+//         // Stop microphone if it's active
+//         if (document.getElementById('microphone').innerHTML === 'Stop Microphone') {
+//             speechRecognizer.stopContinuousRecognitionAsync(
+//                 () => {
+//                     document.getElementById('microphone').innerHTML = 'Start Microphone';
+//                     console.log("Successfully stopped speech recognition");
+//                 },
+//                 (err) => {
+//                     console.error("Error stopping speech recognition:", err);
+//                 }
+//             );
+//         }
+//         console.log("Cleaning up connections...");
+//         disconnectAvatar();
+//         const chatHistory = document.getElementById('chatHistory').innerHTML;
+//         console.log("Storing chat history...");
+//         console.log(chatHistory);
+//         sessionStorage.setItem('chatHistory', chatHistory);
+//         await sendChatHistoryToBackend(chatHistory);
 
-    // Get and store chat history
-    const chatHistory = document.getElementById('chatHistory').innerHTML;
-    sessionStorage.setItem('chatHistory', chatHistory);
 
-    // Clean up video/audio elements
-    const remoteVideo = document.getElementById('remoteVideo');
-    while (remoteVideo.firstChild) {
-        remoteVideo.removeChild(remoteVideo.firstChild);
-    }
+//         // Get and store chat history
+        
 
-    // Disconnect avatar and cleanup connections
-    disconnectAvatar();
+//         // Clean up video/audio elements
+//         const remoteVideo = document.getElementById('remoteVideo');
+//         while (remoteVideo.firstChild) {
+//             remoteVideo.removeChild(remoteVideo.firstChild);
+//         }
+//           // Disconnect avatar and cleanup
+       
+//         // Analyze conversation before disconnecting
+//         // try {
+//         //     console.log("Starting conversation analysis...");
+//         //     console.log(chatHistory);
+//         //     const analysisResults = await analyzeConversation(chatHistory);
+//         //     console.log("Analysis completed, storing results...");
+            
+//         //     // Store analysis results in sessionStorage
+//         //     sessionStorage.setItem('analysisResults', JSON.stringify(analysisResults));
+//         // } catch (analysisError) {
+//         //     console.error("Error during analysis:", analysisError);
+//         //     // Continue with cleanup even if analysis fails
+//         // }
+//         // Add a small delay to ensure all cleanup is complete
+//         // console.log("Redirecting to summary page...");
+//         // setTimeout(() => {
+//         //     window.location.href = '/summary';
+//         // }, 1000);
 
-    // Use setTimeout to ensure cleanup is complete before redirect
-    setTimeout(() => {
-        window.location.href = '/summary';
-    }, 500);
-};
+//     } catch (error) {
+//         console.error("Error during session cleanup:", error);
+        
+//         // Emergency cleanup
+//         try {
+//             if (avatarSynthesizer) avatarSynthesizer.close();
+//             if (peerConnection) peerConnection.close();
+//             if (speechRecognizer) speechRecognizer.close();
+            
+//             avatarSynthesizer = null;
+//             peerConnection = null;
+//             speechRecognizer = null;
+//             sessionActive = false;
+            
+//             // Still try to redirect
+//             // window.location.href = '/summary';
+//         } catch (cleanupError) {
+//             console.error("Error during emergency cleanup:", cleanupError);
+//             alert("There was an error ending the session. Please refresh the page.");
+//         }
+//     }
+// };
 
 window.clearChatHistory = () => {
     document.getElementById('chatHistory').innerHTML = '';
@@ -781,6 +892,57 @@ window.updateTypeMessageBox = () => {
     }
 };
 
+async function sendChatHistoryToBackend(chatHistory) {
+    try {
+        // Show loading indicator
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'analysis-loading-overlay';
+        loadingDiv.innerHTML = `
+            <div class="analysis-loading-content">
+                <h3>Analyzing Conversation...</h3>
+                <div class="loading-progress">
+                    <div class="loading-progress-bar"></div>
+                </div>
+                <p>Please wait while we generate your report...</p>
+            </div>
+        `;
+        document.body.appendChild(loadingDiv);
+
+        const response = await fetch('/save_chat_history', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ chatHistory })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        // Store analysis results
+        sessionStorage.setItem('analysisResults', JSON.stringify(result.analysis));
+        
+        // Remove loading indicator
+        document.body.removeChild(loadingDiv);
+        
+        // Redirect to report page
+        window.location.href = '/report';
+
+    } catch (error) {
+        console.error('Failed to send chat history:', error);
+        alert('Error generating report. Please try again.');
+        
+        // Remove loading indicator if there was an error
+        const loadingDiv = document.querySelector('.analysis-loading-overlay');
+        if (loadingDiv) {
+            document.body.removeChild(loadingDiv);
+        }
+    }
+}
+
 // Language and scenario change handlers
 document.getElementById('languageSelect')?.addEventListener('change', () => {
     if (sessionActive) {
@@ -830,6 +992,75 @@ window.onload = () => {
         }
     }, 2000);
 };
+
+
+//============================================ Report===================================//
+async function analyzeConversation(chatHistory) {
+    const analysisPrompt = `
+        Please analyze this customer service conversation and provide detailed scores and feedback on:
+        1. Communication Skills (0-100):
+           - Clarity of expression
+           - Active listening
+           - Empathy and understanding
+        
+        2. Negotiation Skills (0-100):
+           - Problem-solving approach
+           - Flexibility in solutions
+           - Conflict resolution
+        
+        3. Conversation Structure (0-100):
+           - Opening technique
+           - Proper greeting and introduction
+           - Clear closing and follow-up
+        
+        4. Approach Technique (0-100):
+           - Professional demeanor
+           - Customer engagement
+           - Situation handling
+        
+        5. Response Quality (0-100):
+           - Accuracy of information
+           - Completeness of answers
+           - Response timing
+        
+        6. Overall Customer Interaction (0-100):
+           - Customer satisfaction
+           - Issue resolution
+           - Professional relationship building
+
+        Please provide:
+        1. Numerical scores for each category and subcategory
+        2. Specific examples from the conversation
+        3. Detailed improvement suggestions
+        4. Overall strengths and weaknesses
+        
+        Format the response as JSON with clear sections for scores, examples, and recommendations.
+        
+        Conversation to analyze:
+        ${chatHistory}
+    `;
+
+    try {
+        const response = await fetch('/analyze-conversation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                prompt: analysisPrompt,
+                conversation: chatHistory
+            })
+        });
+
+        const analysisData = await response.json();
+        return analysisData;
+    } catch (error) {
+        console.error('Analysis error:', error);
+        throw error;
+    }
+}
+
+
 
 // Cleanup on window unload
 window.addEventListener('unload', () => {

@@ -98,105 +98,73 @@ function connectAvatar() {
     });
     xhr.send();
 }
-window.stopSession = async () => {
-    console.log("entered stop session");
+window.stopSession = function() {
+    console.log("Ending session and redirecting to static report...");
+    
     try {
-        console.log("Starting session cleanup...");
-
+        // Clean up any active session elements if needed
+        if (window.videoElement) {
+            window.videoElement.srcObject = null;
+        }
+        
         // First stop all ongoing speech
         if (isSpeaking) {
             stopSpeaking();
         }
 
-        // Stop microphone if it's active and ensure it stops before proceeding
+        // Stop microphone if it's active
         if (document.getElementById('microphone').innerHTML === 'Stop Microphone') {
-            await new Promise((resolve, reject) => {
-                speechRecognizer.stopContinuousRecognitionAsync(
-                    () => {
-                        document.getElementById('microphone').innerHTML = 'Start Microphone';
-                        console.log("Successfully stopped speech recognition");
-                        resolve();
-                    },
-                    (err) => {
-                        console.error("Error stopping speech recognition:", err);
-                        reject(err);
-                    }
-                );
-            });
+            speechRecognizer.stopContinuousRecognitionAsync(
+                () => {
+                    document.getElementById('microphone').innerHTML = 'Start Microphone';
+                    console.log("Successfully stopped speech recognition");
+                },
+                (err) => {
+                    console.error("Error stopping speech recognition:", err);
+                }
+            );
         }
-
+        
+        // Clean up connections
+        disconnectAvatar();
+        
         // Update UI elements
         document.getElementById('startSession').disabled = false;
         document.getElementById('microphone').disabled = true;
         document.getElementById('stopSession').disabled = true;
         document.getElementById('configuration').hidden = false;
         document.getElementById('chatHistory').hidden = true;
-        // document.getElementById('showTypeMessage').checked = false;
-        // document.getElementById('showTypeMessage').disabled = true;
         document.getElementById('userMessageBox').hidden = true;
         document.getElementById('uploadImgIcon').hidden = true;
-
-        // Get and store chat history
-        const chatHistory = document.getElementById('chatHistory').innerHTML;
-        console.log("Storing chat history...");
-        console.log(chatHistory)
-        sessionStorage.setItem('chatHistory', chatHistory);
-        await sendChatHistoryToBackend(chatHistory);
-
+        
         // Clean up video/audio elements
         const remoteVideo = document.getElementById('remoteVideo');
         while (remoteVideo.firstChild) {
             remoteVideo.removeChild(remoteVideo.firstChild);
         }
-
-        // Analyze conversation before disconnecting
-        let analysisResults = null;
-        try {
-            console.log("Starting conversation analysis...");
-            analysisResults = await analyzeConversation(chatHistory);
-            console.log("Analysis completed, storing results...");
-            sessionStorage.setItem('analysisResults', JSON.stringify(analysisResults));
-        } catch (analysisError) {
-            console.error("Error during analysis:", analysisError);
-            // Continue with cleanup even if analysis fails
-        }
-
-        // Disconnect avatar and cleanup
-        console.log("Cleaning up connections...");
-        disconnectAvatar();
-
-        // Ensure that results are stored before redirecting
-        // if (analysisResults) {
-        //     console.log("Redirecting to summary page...");
-        //     // setTimeout(() => {
-        //     //     window.location.href = '/summary';
-        //     // }, 1000);
-        // } else {
-        //     alert("Analysis failed. Please try again.");
-        // }
-
+        
+        // IMPORTANT: Bypass analysis and redirect directly to static report
+        window.location.href = '/dreport';
+        
     } catch (error) {
+        console.error("Error during session cleanup:", error);
         
         // Emergency cleanup
-        try {
-            if (avatarSynthesizer) avatarSynthesizer.close();
-            if (peerConnection) peerConnection.close();
-            if (speechRecognizer) speechRecognizer.close();
-
-            avatarSynthesizer = null;
-            peerConnection = null;
-            speechRecognizer = null;
-            sessionActive = false;
-            
-            // // Still try to redirect
-            // window.location.href = '/summary';
-        } catch (cleanupError) {
-            console.error("Error during emergency cleanup:", cleanupError);
-            alert("There was an error ending the session. Please refresh the page.");
-        }
+        if (avatarSynthesizer) avatarSynthesizer.close();
+        if (peerConnection) peerConnection.close();
+        if (speechRecognizer) speechRecognizer.close();
+        
+        avatarSynthesizer = null;
+        peerConnection = null;
+        speechRecognizer = null;
+        sessionActive = false;
+        
+        // Still redirect to static report even in case of error
+        window.location.href = '/dreport';
     }
-};
-// Initialize messages with selected scenario
+    
+    return false;
+};// Initialize messages with selected scenario
 
 
 function initMessages() {

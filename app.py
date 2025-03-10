@@ -14,7 +14,7 @@ import os
 
 app = Flask(__name__)
 CORS(app)
-genai.configure(api_key='AIzaSyCRxcQJL0lRiT8nd71y4Kvwm5WTE9rwuZ0')
+genai.configure(api_key='AIzaSyAeKDFy9EGSQ5m9OlIjP33adzG1ZF-O-xg')
 model = genai.GenerativeModel('gemini-pro')
 
 app.config["MONGO_URI"] = "mongodb+srv://vasudha:vasudha@cluster0.0vkno.mongodb.net/usersDB?authSource=admin&retryWrites=true&w=majority&readPreference=primary"
@@ -748,7 +748,7 @@ def superadmin_get_admin_scenarios():
         print(f"Error fetching admin scenarios: {e}")
         return jsonify({"error": "Failed to fetch scenarios"}), 500
     #........................................ report.......................
-# @app.route('/analyze-conversation', methods=['POST'])
+
 def analyze_conversation_with_gemini(conversation):
     try:
         # Create analysis prompt
@@ -825,127 +825,13 @@ def report():
     except Exception as e:
         print(f"Unexpected error in report route: {str(e)}")
         return render_template('report.html', 
-                            error=f"An unexpected error occurred: {str(e)}")# def analyze_conversation():
-#     try:
-#         data = request.json
-#         print("Received Data:", data)
-#         conversation = data.get('conversation', '')
-#         print("Conversation Content:", conversation[:100])  # First 100 chars
-        
-#         if not conversation:
-#             return jsonify({
-#                 'error': 'Empty conversation data'
-#             }), 400
-        
-#         # Configure Gemini API
-#         genai.configure(api_key='AIzaSyCPSOGZfzQlvPyfFKILzy1POXL9gYD9py0')
-#         model = genai.GenerativeModel('gemini-pro')
+                            error=f"An unexpected error occurred: {str(e)}")
 
-#         # Create analysis prompt
-#         analysis_prompt = """
-#         Analyze this customer service conversation and provide a detailed assessment. 
-#         Structure your response as a JSON object with the following format:
-
-#         {
-#             "overallScore": <0-100>,
-#             "communicationSkills": {
-#                 "overall": <0-100>,
-#                 "clarity": <0-100>,
-#                 "listening": <0-100>,
-#                 "empathy": <0-100>
-#             },
-#             "negotiationSkills": {
-#                 "overall": <0-100>,
-#                 "problemSolving": <0-100>,
-#                 "flexibility": <0-100>,
-#                 "conflictResolution": <0-100>
-#             },
-#             "conversationStructure": {
-#                 "overall": <0-100>,
-#                 "opening": <0-100>,
-#                 "development": <0-100>,
-#                 "resolution": <0-100>,
-#                 "closing": <0-100>
-#             },
-#             "approachTechnique": {
-#                 "overall": <0-100>,
-#                 "professionalism": <0-100>,
-#                 "engagement": <0-100>,
-#                 "situationHandling": <0-100>
-#             },
-#             "responseQuality": {
-#                 "overall": <0-100>,
-#                 "accuracy": <0-100>,
-#                 "completeness": <0-100>,
-#                 "timing": <0-100>
-#             },
-#             "customerInteraction": {
-#                 "overall": <0-100>,
-#                 "satisfaction": <0-100>,
-#                 "issueResolution": <0-100>,
-#                 "relationshipBuilding": <0-100>
-#             },
-#             "detailedAnalysis": [
-#                 {
-#                     "title": <string>,
-#                     "description": <string>,
-#                     "score": <0-100>
-#                 }
-#             ],
-#             "recommendations": [
-#                 {
-#                     "title": <string>,
-#                     "description": <string>,
-#                     "type": "strength" or "improvement",
-#                     "priority": "high" or "medium" or "low"
-#                 }
-#             ],
-#             "keyInsights": [<string>]
-#         }
-
-#         Focus on:
-#         1. Communication quality and effectiveness
-#         2. Professional approach and customer handling
-#         3. Problem-solving and negotiation skills
-#         4. Conversation structure and flow
-#         5. Response appropriateness and completeness
-#         6. Overall interaction quality
-
-#         Provide specific examples from the conversation to support your analysis.
-#         Remember to maintain strict JSON format in your response.
-
-#         Conversation to analyze: 
-#         """ + conversation
-
-#         # Get response from Gemini
-#         response = model.generate_content(analysis_prompt)
-        
-#         # Extract JSON from response
-#         json_str = re.search(r'\{.*\}', response.text, re.DOTALL)
-#         if not json_str:
-#             raise ValueError("No JSON found in response")
-            
-#         analysis_data = json.loads(json_str.group())
-
-#         # Store analysis in database
-#         analysis_record = {
-#             'conversation': conversation,
-#             'analysis': analysis_data,
-#             'timestamp': datetime.utcnow(),
-#             'conversation_id': str(request.args.get('conversation_id', '')),
-#         }
-        
-#         mongo.db.conversation_analyses.insert_one(analysis_record)
-
-#         return jsonify(analysis_data)
-
-#     except Exception as e:
-#         print(f"Error in conversation analysis: {str(e)}")
-#         return jsonify({
-#             'error': 'Analysis failed',
-#             'message': str(e)
-#         }), 500
-    
+# Add the new static report route
+@app.route('/dreport')
+def static_report():
+    """Display the static report template after a call ends"""
+    return render_template('Dreport.html')
 
 @app.route('/save_chat_history', methods=['POST'])
 def save_chat_history():
@@ -1047,7 +933,6 @@ def get_analysis_history():
             'message': str(e)
         }), 500
 
-# Add route to get specific analysis by ID
 @app.route('/analysis/<analysis_id>')
 def get_analysis(analysis_id):
     try:
@@ -1076,5 +961,3 @@ def get_analysis(analysis_id):
 
 if __name__ == '__main__':
     app.run(debug=True)
-    
-    
